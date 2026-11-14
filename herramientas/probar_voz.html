@@ -28,7 +28,7 @@
 import { analizarVoz, SENALES_VOZ } from '../src/sensores/voz.js';
 const $ = (id) => document.getElementById(id);
 const DEFECTO = { velocidad_habla: { media: 4.4, desv: 0.2 }, pausas: { media: 0.22, desv: 0.03 } };
-let ultimo = null, rec = null, trozos = [];
+let ultimo = null, rec = null, trozos = [], tope = null;
 
 // Calibración guardada en este navegador (try/catch: localStorage puede fallar)
 const leerCal = () => { try { return JSON.parse(localStorage.getItem('voz_calibracion') || '[]'); } catch { return []; } };
@@ -74,11 +74,12 @@ $('grabar').onclick = async () => {
     a.download = 'voz_' + new Date().toISOString().slice(11, 19).replace(/:/g, '') + '.webm'; a.style.display = 'inline';
     analizar(blob);
   };
-  rec.start(); $('estado').textContent = '● Grabando… (máx. 60 s)';
+  rec.start(); $('estado').textContent = '● Grabando… (máx. 90 s)';
   $('grabar').disabled = true; $('parar').disabled = false;
-  setTimeout(() => rec && rec.state === 'recording' && $('parar').click(), 60000);
+  clearTimeout(tope);   // sin esto, el tope de una grabación anterior cortaba la siguiente
+  tope = setTimeout(() => rec && rec.state === 'recording' && $('parar').click(), 90000);
 };
-$('parar').onclick = () => { rec.stop(); $('grabar').disabled = false; $('parar').disabled = true; };
+$('parar').onclick = () => { clearTimeout(tope); rec.stop(); $('grabar').disabled = false; $('parar').disabled = true; };
 $('archivo').onchange = (e) => e.target.files[0] && analizar(e.target.files[0]);
 $('calibrar').onclick = () => {
   const fila = {}; for (const o of ultimo.observaciones) fila[o.senal] = o.valor;
