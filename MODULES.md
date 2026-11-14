@@ -1,0 +1,60 @@
+# SOSpesAI · technical modules (link, authority, voice)
+
+Plain ES modules, no dependencies, no server. They run in the browser and in Node (for tests).
+Code, identifiers and data keys are in English. Not a medical device: the modules estimate and compare, they do not diagnose.
+
+| Module | Main export | Returns |
+|---|---|---|
+| `src/engine/link.js` | `getLink(dateISO, profile)` | `{ owlt_s, rtt_s, hasLink, noLinkReason, waitUntilLink_s, source }` |
+| `src/engine/authority.js` | `computeAuthority({ profile, dateISO, condition })` | `{ A, whoDecides: 'EARTH'\|'SHARED'\|'CREW', explanation, earthResponse_min, tCrit_min, breakdown_min, mode, liveGuidance, link, profile, condition }` |
+| `src/sensors/voice.js` | `analyzeVoice(audioBlob, baseline, { crew, time })` | `{ observations: [...], summary: { quality, snr_db, z, changes, text } }` |
+
+## Loading data
+
+The modules do not fetch anything on import. Either inject the JSON you already have, or let them fetch the defaults in `data/`:
+
+```js
+import { setLinkData } from './src/engine/link.js';
+import { setAuthorityData, computeAuthority } from './src/engine/authority.js';
+
+setLinkData(marsLinkJson);                                   // data/mars_link.json
+setAuthorityData({ profiles: profilesJson, cards: cardsJson }); // data/mission_profiles.json, data/condition_cards.json
+// or, in the browser:  await loadAuthorityData();           // fetches the three files
+
+computeAuthority({ profile: 'mars_surface', dateISO: '2026-11-15T16:30:00Z', condition: 'renal_colic' });
+// -> { A: 0.15, whoDecides: 'EARTH', explanation: 'Kidney stone (renal colic): Earth answers in 37 min and there is a 4 h margin; ...' }
+```
+
+- Link profiles: `iss`, `moon`, `moon_relay`, `moon_south_pole`, `mars`, `mars_transit`, `mars_surface`.
+- Mission profiles: `iss`, `lunar_orbit`, `moon_relay`, `moon_south_pole`, `mars_transit`, `mars_surface` (aliases `moon`, `mars`).
+- `condition` is a card id (`renal_colic`, `suspected_sepsis`, `eye_chemical_burn`…) or an object `{ t_crit_min, name?, packet_kB? }`.
+
+## Observation format (voice)
+
+```json
+{ "crew": "CM-2", "signal": "speech_rate", "value": 4.45, "unit": "syllables/s", "time": "2026-11-14T12:30:44Z",
+  "source": "microphone", "method": "estimated", "quality": 1, "region": "brain" }
+```
+
+Signals: `speech_rate` (syllables/s), `pause_fraction` (fraction), `message_duration` (s), plus four new ones:
+`pause_count` (count), `mean_pause_duration` (s), `f0_mean` (Hz), `f0_variability` (st).
+`baseline[signal]` accepts `{ mean, sd }`, `{ pre_mean, pre_sd }`, `{ media, desv }` or `{ pre_media, pre_dt }`.
+
+## Tests
+
+```
+node tools/test_link.mjs        # 14 Nov 2026 -> 10 min 59 s one way to Mars
+node tools/test_authority.mjs   # 14 reference cases from motor_autoridad.py
+node tools/test_voice.mjs       # synthetic speech with known rate, pauses and pitch
+```
+
+Browser test pages (serve the repo root, e.g. `python -m http.server 8000`): `tools/test_link.html`, `tools/test_authority.html`, `tools/test_voice.html`.
+
+## Known limits and assumptions
+
+- **Authority:** 15 min ground response and thresholds 0.25 / 1 are team assumptions (`data/mission_profiles.json`). All `t_crit_min` values are still `TO_VALIDATE`.
+- **Link:** ISS 0.25 s (assumption), Moon 1.28 s (mean distance), lunar south pole outage calendar is simulated, Mars from JPL approximate ephemerides (to be checked against JPL Horizons).
+- **Voice:** validated on 10 real recordings of one speaker. It detects speech slower than the personal baseline (−14 % in the test) but under-counts syllables in fast speech. In a noisy room it reports low quality instead of a value.
+- `tools/generate_earth_mars_link.py` and its CSV keep their original Spanish comments and column names.
+
+AI use: code drafted with AI assistance (Claude, Anthropic) and reviewed by the team. Licence: MIT.

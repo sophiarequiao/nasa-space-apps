@@ -1,0 +1,103 @@
+{
+  "_about": "SOSpesAI mission profiles. Values from the team PROPOSAL (section 1b) and motor_autoridad.py. Items marked ASSUMPTION are team design parameters, not NASA data. Drafted with AI assistance (Claude, Anthropic).",
+  "assumptions": {
+    "ground_response_min": 15,
+    "earth_threshold": 0.25,
+    "crew_threshold": 1.0,
+    "medical_share_of_link": 0.1,
+    "max_round_trip_for_live_guidance_s": 3.0,
+    "note": "Team ASSUMPTIONS: 15 min for a flight surgeon to read and answer; thresholds 0.25 and 1 (flight surgeons would set them before a real mission); 10 % of the link for medical data; live guidance only if the light round trip is <= 3 s."
+  },
+  "profiles": [
+    {
+      "id": "iss",
+      "name": "Low Earth orbit (ISS)",
+      "name_es": "Órbita baja (ISS)",
+      "link": "iss",
+      "medical_rate_kbps": 10000,
+      "delay": "Near real time",
+      "outages": "Almost continuous link",
+      "evacuation": "Less than 24 h to definitive care",
+      "evacuation_max_h": 24,
+      "evacuation_source": "NTRS 20240011063 (PROPOSAL 1b)",
+      "resupply": "Yes, cargo vehicles",
+      "gravity_g": 0,
+      "usual_decider": "Earth"
+    },
+    {
+      "id": "lunar_orbit",
+      "name": "Lunar orbit and transit",
+      "name_es": "Órbita lunar y viaje a la Luna",
+      "link": "moon",
+      "medical_rate_kbps": 5000,
+      "delay": "Seconds (1.3 s one way from distance alone)",
+      "outages": "Continuous link with relay (SIMPLIFIED: passes behind the Moon are not modelled)",
+      "evacuation": "Days",
+      "evacuation_max_h": null,
+      "evacuation_source": "PROPOSAL 1b (TO CHECK: number of days)",
+      "resupply": "Limited",
+      "gravity_g": 0,
+      "usual_decider": "Earth, with onboard support"
+    },
+    {
+      "id": "moon_relay",
+      "name": "Lunar south pole, with relay satellite",
+      "name_es": "Polo sur lunar, con satélite repetidor",
+      "link": "moon_relay",
+      "medical_rate_kbps": 5000,
+      "delay": "Seconds",
+      "outages": "Continuous link thanks to the relay",
+      "evacuation": "Up to about 14 days stabilising on site",
+      "evacuation_max_h": 336,
+      "evacuation_source": "NTRS 20240011063 (PROPOSAL 1b)",
+      "resupply": "Very limited",
+      "gravity_g": 0.16,
+      "usual_decider": "Shared"
+    },
+    {
+      "id": "moon_south_pole",
+      "name": "Lunar south pole, no relay",
+      "name_es": "Polo sur lunar, sin repetidor",
+      "link": "moon_south_pole",
+      "medical_rate_kbps": 5000,
+      "delay": "Seconds",
+      "outages": "Earth is visible only half of each sidereal month (27.32 d): up to 13.66 d without link. SIMULATED calendar",
+      "evacuation": "Up to about 14 days stabilising on site",
+      "evacuation_max_h": 336,
+      "evacuation_source": "NTRS 20240011063 (PROPOSAL 1b)",
+      "resupply": "Very limited",
+      "gravity_g": 0.16,
+      "usual_decider": "Shared; the crew during link gaps"
+    },
+    {
+      "id": "mars_transit",
+      "name": "Mars transit",
+      "name_es": "Viaje a Marte",
+      "link": "mars_transit",
+      "medical_rate_kbps": null,
+      "delay": "0 to 22 min one way (the Earth-Mars distance of the date is used here: upper bound)",
+      "outages": "Weeks without link at solar conjunction (Mars within 2° of the Sun)",
+      "evacuation": "Not possible",
+      "evacuation_max_h": null,
+      "evacuation_source": "PROPOSAL 1b",
+      "resupply": "No",
+      "gravity_g": 0,
+      "usual_decider": "The crew, increasingly"
+    },
+    {
+      "id": "mars_surface",
+      "name": "Mars surface",
+      "name_es": "Superficie de Marte",
+      "link": "mars_surface",
+      "medical_rate_kbps": null,
+      "delay": "3 to 22 min one way depending on the date",
+      "outages": "Weeks without link at solar conjunction (SIMPLIFIED: relay orbiter passes are not modelled)",
+      "evacuation": "Not possible",
+      "evacuation_max_h": null,
+      "evacuation_source": "PROPOSAL 1b",
+      "resupply": "No",
+      "gravity_g": 0.38,
+      "usual_decider": "The crew"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>link.js test</title>
+<body style="font-family:system-ui;padding:1rem">
+<h1>link.js test</h1>
+<label>Date (UTC) <input id="d" type="datetime-local" value="2026-11-14T12:00"></label>
+<select id="p"><option>mars</option><option>iss</option><option>moon</option><option>moon_south_pole</option></select>
+<button id="b">Compute</button>
+<pre id="o"></pre>
+<script type="module">
+  import { getLink, loadLinkData, formatDuration } from '../src/engine/link.js';
+  await loadLinkData();
+  const run = () => {
+    try {
+      const e = getLink(document.getElementById('d').value + ':00Z', document.getElementById('p').value);
+      document.getElementById('o').textContent =
+        `One way: ${formatDuration(e.owlt_s)} · Round trip: ${formatDuration(e.rtt_s)}\n` + JSON.stringify(e, null, 2);
+    } catch (err) { document.getElementById('o').textContent = 'ERROR: ' + err.message; }
+  };
+  document.getElementById('b').onclick = run; run();
+</script>
+</body></html>

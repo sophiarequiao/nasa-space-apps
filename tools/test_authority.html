@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>authority.js test · SOSpesAI</title>
+<style>
+  body{font-family:system-ui;max-width:760px;margin:auto;padding:1rem}
+  select,input{font-size:1rem;padding:.35rem;margin:.2rem 0}
+  label{display:block;margin:.4rem 0}
+  #who{font-size:2rem;font-weight:700;margin:.2rem 0}
+  .EARTH{color:#1d4ed8}.SHARED{color:#b45309}.CREW{color:#b91c1c}
+  table{border-collapse:collapse;width:100%} td,th{border-bottom:1px solid #ddd;padding:.3rem;text-align:left}
+  small{color:#555}
+</style>
+<body>
+<h1>authority.js test</h1>
+<label>Mission profile <select id="profile"></select></label>
+<label>Condition <select id="cond"></select></label>
+<label>Date and time (UTC) <input id="date" type="datetime-local"></label>
+
+<svg id="dial" viewBox="0 0 320 180" width="320" role="img" aria-label="Authority dial">
+  <!-- Three zones on a log scale of A: 0.01 … 0.25 … 1 … 100 -->
+  <path id="zE" fill="none" stroke="#1d4ed8" stroke-width="22"/>
+  <path id="zS" fill="none" stroke="#b45309" stroke-width="22"/>
+  <path id="zC" fill="none" stroke="#b91c1c" stroke-width="22"/>
+  <line id="needle" x1="160" y1="160" x2="160" y2="40" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="160" cy="160" r="7" fill="#111"/>
+  <text x="26" y="176" font-size="11">EARTH</text><text x="140" y="16" font-size="11">SHARED</text><text x="262" y="176" font-size="11">CREW</text>
+</svg>
+<p id="who"></p>
+<p id="exp"></p>
+<table id="table"></table>
+<p id="profileInfo"><small></small></p>
+
+<script type="module">
+import { computeAuthority, loadAuthorityData, listProfiles, listConditions } from '../src/engine/authority.js';
+const $ = (id) => document.getElementById(id);
+await loadAuthorityData();
+$('profile').innerHTML = listProfiles().map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+$('cond').innerHTML = listConditions().map(c => `<option value="${c.id}">${c.name} (T_crit ${c.t_crit_min} min)</option>`).join('');
+$('cond').value = 'renal_colic';
+$('date').value = new Date().toISOString().slice(0, 16);
+
+// Dial: angle from 180° (left) to 0° (right) following log10(A) between 0.01 and 100
+const LMIN = -2, LMAX = 2;
+const ang = (A) => Math.PI * (1 - (Math.min(LMAX, Math.max(LMIN, Math.log10(Math.max(A, 1e-6)))) - LMIN) / (LMAX - LMIN));
+const pt = (a, r) => [160 + r * Math.cos(a), 160 - r * Math.sin(a)];
+const arc = (A1, A2) => { const [x1, y1] = pt(ang(A1), 120), [x2, y2] = pt(ang(A2), 120); return `M${x1} ${y1} A120 120 0 0 1 ${x2} ${y2}`; };
+$('zE').setAttribute('d', arc(0.01, 0.25)); $('zS').setAttribute('d', arc(0.25, 1)); $('zC').setAttribute('d', arc(1, 100));
+
+function draw() {
+  try {
+    const r = computeAuthority({ profile: $('profile').value, dateISO: $('date').value + ':00Z', condition: $('cond').value });
+    const [x, y] = pt(ang(r.A), 105); $('needle').setAttribute('x2', x); $('needle').setAttribute('y2', y);
+    $('who').className = r.whoDecides; $('who').textContent = `${r.whoDecides}  ·  A = ${r.A}`;
+    $('exp').textContent = r.explanation;
+    const d = r.breakdown_min;
+    $('table').innerHTML = `<tr><th>Earth's response (min)</th><th>${r.earthResponse_min}</th></tr>
+      <tr><td>Wait until there is a link</td><td>${d.wait}</td></tr>
+      <tr><td>Summary uplink (${r.packet_kB} kB at ${r.medicalRate_kbps} kbps)</td><td>${d.uplink}</td></tr>
+      <tr><td>Light, round trip</td><td>${d.lightRoundTrip}</td></tr>
+      <tr><td>Ground response (ASSUMPTION)</td><td>${d.groundResponse}</td></tr>
+      <tr><th>T_crit (min)</th><th>${r.tCrit_min} ${r.condition.status ? '(' + r.condition.status + ')' : ''}</th></tr>
+      <tr><td>Help Earth can give</td><td>${r.mode}${r.liveGuidance ? ' · live guidance possible' : ''}</td></tr>`;
+    $('profileInfo').firstChild.textContent = `Evacuation: ${r.profile.evacuation} · Gravity: ${r.profile.gravity_g} g · ${r.profile.outages}`;
+  } catch (err) { $('who').className = ''; $('who').textContent = 'ERROR'; $('exp').textContent = err.message; }
+}
+for (const id of ['profile', 'cond', 'date']) $(id).oninput = draw;
+draw();
+</script>
+</body></html>

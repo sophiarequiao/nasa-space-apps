@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>voice.js test · SOSpesAI</title>
+<style>
+  body{font-family:system-ui;max-width:760px;margin:auto;padding:1rem}
+  button{font-size:1rem;padding:.5rem 1rem;margin:.2rem}
+  table{border-collapse:collapse;width:100%;margin-top:.5rem} td,th{border-bottom:1px solid #ddd;padding:.3rem;text-align:left}
+  .out{color:#b45309;font-weight:600} #status{font-weight:600} textarea{width:100%;height:6rem;font-family:monospace}
+</style>
+<body>
+<h1>voice.js test</h1>
+<p>Record a 20-30 s message as if you were talking to Earth, or load a file. The audio never leaves the browser.</p>
+<button id="rec">● Record</button><button id="stop" disabled>■ Stop</button>
+<input id="file" type="file" accept="audio/*"> <a id="download" style="display:none">⬇ Download recording</a>
+<p id="status">Ready.</p>
+
+<h3>Personal baseline</h3>
+<p><small>Default: typical values of the synthetic data (4.4 ± 0.2 syl/s; 0.22 ± 0.03 silence). For your own baseline: record 3 normal messages and press "Add to my baseline" after each one.</small></p>
+<textarea id="baseline"></textarea>
+<button id="calibrate" disabled>Add to my baseline</button><button id="clear">Clear my baseline</button> <span id="nCal"></span>
+
+<h3>Result</h3>
+<p id="text"></p>
+<table id="table"></table>
+<details><summary>Observations (app format)</summary><pre id="json"></pre></details>
+
+<script type="module">
+import { analyzeVoice, VOICE_SIGNALS } from '../src/sensors/voice.js';
+const $ = (id) => document.getElementById(id);
+const DEFAULT = { speech_rate: { mean: 4.4, sd: 0.2 }, pause_fraction: { mean: 0.22, sd: 0.03 } };
+let last = null, rec = null, chunks = [], cap = null;
+
+// Calibration kept in this browser (try/catch: localStorage can fail)
+const readCal = () => { try { return JSON.parse(localStorage.getItem('voice_calibration') || '[]'); } catch { return []; } };
+const writeCal = (v) => { try { localStorage.setItem('voice_calibration', JSON.stringify(v)); } catch {} };
+function baselineFromCal() {
+  const cal = readCal(); $('nCal').textContent = `${cal.length} calibration messages`;
+  if (cal.length < 3) return DEFAULT;
+  const m = {};
+  for (const s of VOICE_SIGNALS) {
+    const v = cal.map(c => c[s]).filter(x => typeof x === 'number');
+    if (v.length < 3) continue;
+    const mu = v.reduce((a, b) => a + b, 0) / v.length;
+    const sd = Math.sqrt(v.reduce((a, b) => a + (b - mu) ** 2, 0) / (v.length - 1));
+    // With only 3 messages the sd comes out too small: floor at 5 % of the mean (ASSUMPTION)
+    m[s] = { mean: +mu.toFixed(2), sd: +Math.max(sd, 0.05 * Math.abs(mu), 0.01).toFixed(3), n: v.length };
+  }
+  return m;
+}
+$('baseline').value = JSON.stringify(baselineFromCal(), null, 1);
+
+async function analyze(blob) {
+  $('status').textContent = 'Analysing…';
+  let baseline = {}; try { baseline = JSON.parse($('baseline').value); } catch { $('status').textContent = 'The baseline is not valid JSON'; return; }
+  const t0 = performance.now();
+  const r = await analyzeVoice(blob, baseline, { crew: 'CM-2' });
+  last = r; $('calibrate').disabled = false;
+  $('status').textContent = `Done in ${Math.round(performance.now() - t0)} ms · quality ${r.summary.quality} · SNR ${r.summary.snr_db} dB`;
+  $('text').textContent = r.summary.text;
+  $('table').innerHTML = '<tr><th>Signal</th><th>Value</th><th>Quality</th><th>z</th></tr>' + r.observations.map(o => {
+    const z = r.summary.z[o.signal]; const out = z != null && Math.abs(z) >= 2;
+    return `<tr class="${out ? 'out' : ''}"><td>${o.signal}</td><td>${o.value} ${o.unit}</td><td>${o.quality}</td><td>${z ?? '—'}</td></tr>`;
+  }).join('');
+  $('json').textContent = JSON.stringify(r.observations, null, 1);
+}
+
+$('rec').onclick = async () => {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: false } });
+  rec = new MediaRecorder(stream); chunks = [];
+  rec.ondataavailable = (e) => chunks.push(e.data);
+  rec.onstop = () => {
+    stream.getTracks().forEach(t => t.stop());
+    const blob = new Blob(chunks, { type: rec.mimeType });
+    const a = $('download'); a.href = URL.createObjectURL(blob);
+    a.download = 'voice_' + new Date().toISOString().slice(11, 19).replace(/:/g, '') + '.webm'; a.style.display = 'inline';
+    analyze(blob);
+  };
+  rec.start(); $('status').textContent = '● Recording… (max. 90 s)';
+  $('rec').disabled = true; $('stop').disabled = false;
+  clearTimeout(cap);   // otherwise the cap of an earlier recording would cut this one short
+  cap = setTimeout(() => rec && rec.state === 'recording' && $('stop').click(), 90000);
+};
+$('stop').onclick = () => { clearTimeout(cap); rec.stop(); $('rec').disabled = false; $('stop').disabled = true; };
+$('file').onchange = (e) => e.target.files[0] && analyze(e.target.files[0]);
+$('calibrate').onclick = () => {
+  const row = {}; for (const o of last.observations) row[o.signal] = o.value;
+  const cal = readCal(); cal.push(row); writeCal(cal);
+  $('baseline').value = JSON.stringify(baselineFromCal(), null, 1); $('calibrate').disabled = true;
+};
+$('clear').onclick = () => { writeCal([]); $('baseline').value = JSON.stringify(baselineFromCal(), null, 1); };
+</script>
+</body></html>
