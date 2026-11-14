@@ -1,4 +1,4 @@
-# SOSpesAI · technical modules (link, authority, voice)
+# SOSpesAI · technical modules (link, authority, voice, camera pulse)
 
 Plain ES modules, no dependencies, no server. They run in the browser and in Node (for tests).
 Code, identifiers and data keys are in English. Not a medical device: the modules estimate and compare, they do not diagnose.
@@ -8,6 +8,7 @@ Code, identifiers and data keys are in English. Not a medical device: the module
 | `src/engine/link.js` | `getLink(dateISO, profile)` | `{ owlt_s, rtt_s, hasLink, noLinkReason, waitUntilLink_s, source }` |
 | `src/engine/authority.js` | `computeAuthority({ profile, dateISO, condition })` | `{ A, whoDecides: 'EARTH'\|'SHARED'\|'CREW', explanation, earthResponse_min, tCrit_min, breakdown_min, mode, liveGuidance, link, profile, condition }` |
 | `src/sensors/voice.js` | `analyzeVoice(audioBlob, baseline, { crew, time })` | `{ observations: [...], summary: { quality, snr_db, z, changes, text } }` |
+| `src/sensors/rppg.js` (optional) | `startPulse(videoEl, onResult, { crew })` / `stopPulse()` | calls `onResult({ state, bpm, bpm_raw, quality, reason, observation, waveform })` once per second |
 
 ## Loading data
 
@@ -46,15 +47,17 @@ Signals: `speech_rate` (syllables/s), `pause_fraction` (fraction), `message_dura
 node tools/test_link.mjs        # 14 Nov 2026 -> 10 min 59 s one way to Mars
 node tools/test_authority.mjs   # 14 reference cases from motor_autoridad.py
 node tools/test_voice.mjs       # synthetic speech with known rate, pauses and pitch
+node tools/test_rppg.mjs        # synthetic pulse signals: 55, 72, 110 bpm, noise, slow motion, low light
 ```
 
-Browser test pages (serve the repo root, e.g. `python -m http.server 8000`): `tools/test_link.html`, `tools/test_authority.html`, `tools/test_voice.html`.
+Browser test pages (serve the repo root, e.g. `python -m http.server 8000`): `tools/test_link.html`, `tools/test_authority.html`, `tools/test_voice.html`, `tools/test_rppg.html`.
 
 ## Known limits and assumptions
 
 - **Authority:** 15 min ground response and thresholds 0.25 / 1 are team assumptions (`data/mission_profiles.json`). All `t_crit_min` values are still `TO_VALIDATE`.
 - **Link:** ISS 0.25 s (assumption), Moon 1.28 s (mean distance), lunar south pole outage calendar is simulated, Mars from JPL approximate ephemerides (to be checked against JPL Horizons).
 - **Voice:** validated on 10 real recordings of one speaker. It detects speech slower than the personal baseline (−14 % in the test) but under-counts syllables in fast speech. In a noisy room it reports low quality instead of a value.
+- **Camera pulse (optional):** no face tracking; the person places their face in a fixed zone and must stay still for 15-20 s. Checked against a manual count on one person (74 bpm both) and a post-exercise recovery curve; not yet validated against a pulse oximeter. With motion it hides the value (`reason: 'motion'`) instead of showing a wrong one. `heart_rate` observations use `source: 'camera_rppg'`, `method: 'estimated'`.
 - `tools/generate_earth_mars_link.py` and its CSV keep their original Spanish comments and column names.
 
 AI use: code drafted with AI assistance (Claude, Anthropic) and reviewed by the team. Licence: MIT.

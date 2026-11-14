@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>rppg.js test · SOSpesAI</title>
+<style>
+  body{font-family:system-ui;max-width:820px;margin:auto;padding:1rem}
+  button,select,input{font-size:1rem;padding:.4rem .6rem;margin:.15rem}
+  #box{position:relative;width:480px;max-width:100%}
+  video{width:100%;transform:scaleX(-1);background:#000;border-radius:8px;display:block}
+  #roi{position:absolute;border:3px solid #22c55e;border-radius:40%;left:32%;top:18%;width:36%;height:50%;pointer-events:none}
+  #bpm{font-size:3.2rem;font-weight:700;margin:.2rem 0}
+  #bar{height:10px;background:#ddd;border-radius:5px;overflow:hidden;width:480px;max-width:100%} #bar div{height:100%;background:#22c55e;width:0}
+  table{border-collapse:collapse;width:100%;font-size:.9rem} td,th{border-bottom:1px solid #ddd;padding:.25rem;text-align:left}
+  small{color:#555}
+</style>
+<body>
+<h1>rppg.js test (heart rate from the camera)</h1>
+<p><small>Place your face inside the green oval, with light from the front, and stay still for 15-20 s without talking. The image never leaves the browser and is not stored.</small></p>
+<button id="start">▶ Start</button><button id="stop" disabled>■ Stop</button>
+<label>Method <select id="method"><option value="pos">pos</option><option value="green">green</option></select></label>
+<div id="box"><video id="v" playsinline muted></video><div id="roi"></div></div>
+<p id="bpm">—</p>
+<div id="bar"><div></div></div>
+<p id="info"><small>Not started.</small></p>
+<canvas id="wave" width="480" height="70" style="max-width:100%;border:1px solid #ddd"></canvas>
+
+<h3>Automatic log (one row per second)</h3>
+<p><small>Type what you are doing in "Label" (rest, manual_count_72, after_squats, paper_over_oval…) and change it when you change test. Download the log at the end.</small></p>
+<label>Label <input id="label" value="rest" size="24"></label>
+<button id="log">⬇ Download log</button><button id="raw">⬇ Download raw signal</button><button id="logClear">Clear log</button> <span id="logN"><small>0 rows</small></span>
+
+<h3>Validation against a reference</h3>
+<p><small>With a stable value, read the pulse oximeter, type its value and press "Save measurement". The camera estimate is always saved, even if the app hides it for low quality.</small></p>
+<label>Person <input id="person" value="P1" size="4"></label>
+<label>Condition <select id="cond"><option>good_light</option><option>low_light</option><option>motion</option><option>after_exercise</option></select></label>
+<label>Lux <input id="lux" size="5" placeholder="opt."></label>
+<label>Reference (bpm) <input id="ref" size="4" inputmode="numeric"></label>
+<button id="save" disabled>Save measurement</button>
+<button id="csv">⬇ Download CSV</button><button id="clear">Clear all</button>
+<p id="summary"></p>
+<table id="table"></table>
+
+<script type="module">
+import { startPulse, stopPulse } from '../src/sensors/rppg.js';
+const $ = (id) => document.getElementById(id);
+const REASONS = { gathering_data: 'gathering data…', low_light: 'not enough light', saturated: 'too much light (burnt image)',
+  low_frame_rate: 'the camera is too slow', motion: 'motion or light change: stay still', weak_signal: 'weak signal: more front light and stay still', unstable: 'unstable value: do not move' };
+let last = null; const LOG = [], RAW = []; let t0 = null;
+const read = () => { try { return JSON.parse(localStorage.getItem('pulse_validation') || '[]'); } catch { return []; } };
+const write = (v) => { try { localStorage.setItem('pulse_validation', JSON.stringify(v)); } catch {} };
+const download = (name, text) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' })); a.download = name; a.click(); };
+const stamp = () => new Date().toISOString().slice(11, 19).replace(/:/g, '');
+const clean = (s) => s.replace(/,/g, ' ');
+
+function drawWave(w) {
+  const c = $('wave'), g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height);
+  if (!w || w.length < 2) return;
+  const m = Math.max(...w.map(Math.abs)) || 1; g.beginPath(); g.strokeStyle = '#dc2626'; g.lineWidth = 1.5;
+  w.forEach((v, i) => { const x = i / (w.length - 1) * c.width, y = c.height / 2 - v / m * (c.height / 2 - 4); i ? g.lineTo(x, y) : g.moveTo(x, y); });
+  g.stroke();
+}
+function onResult(r) {
+  last = r; $('save').disabled = r.bpm_raw == null;
+  if (t0 == null) t0 = performance.now();
+  LOG.push([new Date().toISOString().slice(11, 19), Math.round((performance.now() - t0) / 1000), clean($('label').value), $('method').value,
+    r.state, r.bpm ?? '', r.bpm_raw ?? '', r.quality, r.reason ?? '', r.fps, r.light ?? '', r.amplitude_pct ?? '', r.rg ?? '', r.bg ?? '']);
+  $('logN').firstChild.textContent = `${LOG.length} rows`;
+  $('bpm').textContent = r.bpm != null ? `${r.bpm} bpm` : '—';
+  $('bpm').style.color = r.bpm != null ? '#111' : '#999';
+  $('bar').firstChild.style.width = `${Math.round((r.state === 'measuring' ? r.progress : r.quality) * 100)}%`;
+  $('bar').firstChild.style.background = r.state === 'ok' ? '#22c55e' : (r.state === 'measuring' ? '#3b82f6' : '#f59e0b');
+  $('info').firstChild.textContent = `${r.state}${r.reason ? ' · ' + (REASONS[r.reason] || r.reason) : ''} · quality ${r.quality} · raw estimate ${r.bpm_raw ?? '—'} bpm · ${r.fps} fps · light ${r.light ?? '—'}/255`;
+  drawWave(r.waveform);
+}
+$('start').onclick = async () => {
+  try {
+    await startPulse($('v'), onResult, { method: $('method').value, crew: 'CM-2',
+      onSample: (t, r, g, b) => { if (RAW.length < 60000) RAW.push(`${t.toFixed(1)},${r.toFixed(3)},${g.toFixed(3)},${b.toFixed(3)},${clean($('label').value)}`); } });
+    $('start').disabled = true; $('stop').disabled = false;
+  } catch (e) { $('info').firstChild.textContent = 'Could not open the camera: ' + e.message; }
+};
+$('stop').onclick = () => { stopPulse(); $('start').disabled = false; $('stop').disabled = true; $('save').disabled = true; };
+$('method').onchange = () => { if ($('start').disabled) { stopPulse(); $('start').disabled = false; $('start').click(); } };
+$('log').onclick = () => download(`pulse_log_${stamp()}.csv`, ['time,t_s,label,method,state,bpm_shown,bpm_raw,quality,reason,fps,light,amplitude_pct,rg,bg', ...LOG.map(f => f.join(','))].join('\n'));
+$('raw').onclick = () => download(`pulse_raw_${stamp()}.csv`, 't_ms,r,g,b,label\n' + RAW.join('\n'));
+$('logClear').onclick = () => { RAW.length = 0; LOG.length = 0; t0 = null; $('logN').firstChild.textContent = '0 rows'; };
+
+// --- Validation records: measurement id, person, condition, camera vs reference ---
+const COLS = ['id', 'person', 'condition', 'lux', 'camera_bpm', 'camera_quality', 'reference_bpm', 'difference', 'time', 'method', 'shown'];
+function render() {
+  const f = read();
+  $('table').innerHTML = '<tr>' + COLS.map(c => `<th>${c}</th>`).join('') + '</tr>' + f.map(x => '<tr>' + COLS.map(c => `<td>${x[c] ?? ''}</td>`).join('') + '</tr>').join('');
+  const d = f.filter(x => typeof x.difference === 'number');
+  const mae = (v) => v.length ? (v.reduce((a, x) => a + Math.abs(x.difference), 0) / v.length).toFixed(1) : '—';
+  $('summary').textContent = d.length ? `${f.length} measurements · mean absolute error: ${mae(d)} bpm (all) · ${mae(d.filter(x => x.shown === 'yes'))} bpm (only those the app would show)` : `${f.length} measurements`;
+}
+$('save').onclick = () => {
+  if (!last || last.bpm_raw == null) return;
+  const f = read(), ref = parseFloat($('ref').value);
+  f.push({ id: f.length + 1, person: $('person').value, condition: $('cond').value, lux: $('lux').value, camera_bpm: last.bpm_raw,
+    camera_quality: last.quality, reference_bpm: Number.isFinite(ref) ? ref : '', difference: Number.isFinite(ref) ? Math.round((last.bpm_raw - ref) * 10) / 10 : '',
+    time: new Date().toISOString().slice(11, 19), method: $('method').value, shown: last.bpm != null ? 'yes' : 'no' });
+  write(f); $('ref').value = ''; render();
+};
+$('csv').onclick = () => { const f = read(); download(`pulse_validation_${stamp()}.csv`, [COLS.join(','), ...f.map(x => COLS.map(c => x[c] ?? '').join(','))].join('\n')); };
+$('clear').onclick = () => { write([]); render(); };
+render();
+</script>
+</body></html>
