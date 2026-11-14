@@ -52,10 +52,10 @@ Open `http://localhost:8000/tools/demo.html` in a recent Chrome or Edge. Any sta
 | [JPL Horizons](https://ssd.jpl.nasa.gov/horizons/) (ephemeris DE441) | Independent check of that table | `data/horizons_reference.json`, `tools/check_horizons.mjs` |
 | JPL news release on the [Mars solar conjunction](https://www.jpl.nasa.gov/news/mars-missions-to-pause-commanding-in-june-due-to-sun/) | Rule "no commands while Mars is within 2° of the Sun" | `src/engine/link.js` |
 | NASA [Moon Fact Sheet](https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html) | Earth to Moon distance, 384,400 km, 1.28 s | `src/engine/link.js` |
-| NASA Integrated Medical Model results for a Mars transit and NASA Human Research Program risk summaries | Which situations are on the cards and why | `data/condition_cards.json`, fields `nasa_basis` and `_sources` |
-| NASA Technical Reports Server, document 20240011063 | Time to return to Earth for each mission profile | `data/mission_profiles.json` |
+| NASA Human Research Program, [Integrated Medical Model v3.0 report](https://www.nasa.gov/wp-content/uploads/2026/08/mars-transit-iva.pdf) for a 16-month Mars transit with four crew (2017) | Which situations are on the cards: its top drivers of evacuation (eye chemical burn, skin infection, urinary infection, shingles, kidney stone) and of loss of crew life (sepsis, smoke inhalation, stroke, appendicitis) | `data/condition_cards.json`, field `nasa_basis` |
+| NASA paper on medical risk for a long lunar mission with the IMPACT tool, [NTRS 20240011063](https://ntrs.nasa.gov/citations/20240011063) | Background for the evacuation notes of the lunar profiles | `data/mission_profiles.json` |
 
-The last two rows are cited inside the data files and are still being re-read by the team against the original documents.
+The Integrated Medical Model report was run with the medical kit of the space station and itself advises caution when reading it for Mars; we use it only to choose which situations to show. The evacuation times in the mission profiles are still being confirmed against the full text of the lunar paper.
 
 This project uses NASA data and is not endorsed by NASA. No NASA logos or insignia are used.
 

@@ -19,7 +19,7 @@
       "outages": "Almost continuous link",
       "evacuation": "Less than 24 h to definitive care",
       "evacuation_max_h": 24,
-      "evacuation_source": "NTRS 20240011063 (PROPOSAL 1b)",
+      "evacuation_source": "NTRS 20240011063 (PROPOSAL 1b). TO CHECK against the full paper: its abstract does not give this figure",
       "resupply": "Yes, cargo vehicles",
       "gravity_g": 0,
       "usual_decider": "Earth"
@@ -49,7 +49,7 @@
       "outages": "Continuous link thanks to the relay",
       "evacuation": "Up to about 14 days stabilising on site",
       "evacuation_max_h": 336,
-      "evacuation_source": "NTRS 20240011063 (PROPOSAL 1b)",
+      "evacuation_source": "NTRS 20240011063 (PROPOSAL 1b). TO CHECK against the full paper: its abstract does not give this figure",
       "resupply": "Very limited",
       "gravity_g": 0.16,
       "usual_decider": "Shared"
@@ -64,7 +64,7 @@
       "outages": "Earth is visible only half of each sidereal month (27.32 d): up to 13.66 d without link. SIMULATED calendar",
       "evacuation": "Up to about 14 days stabilising on site",
       "evacuation_max_h": 336,
-      "evacuation_source": "NTRS 20240011063 (PROPOSAL 1b)",
+      "evacuation_source": "NTRS 20240011063 (PROPOSAL 1b). TO CHECK against the full paper: its abstract does not give this figure",
       "resupply": "Very limited",
       "gravity_g": 0.16,
       "usual_decider": "Shared; the crew during link gaps"
