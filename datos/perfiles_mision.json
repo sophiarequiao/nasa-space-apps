@@ -1,0 +1,103 @@
+{
+  "_about": "Perfiles de misión de SOSpesAI. Valores de la PROPUESTA (sección 1b) y de motor_autoridad.py. Los marcados SUPUESTO son parámetros de diseño del equipo, no datos de la NASA. Generado con ayuda de IA (Claude, Anthropic).",
+  "supuestos": {
+    "t_respuesta_tierra_min": 15,
+    "umbral_tierra": 0.25,
+    "umbral_tripulacion": 1.0,
+    "cuota_medica_del_enlace": 0.10,
+    "ida_y_vuelta_max_guia_en_directo_s": 3.0,
+    "nota": "SUPUESTOS del equipo: 15 min para que un médico de vuelo lea y responda; umbrales 0,25 y 1 (en una misión real los fijarían los médicos de vuelo); 10 % del enlace para medicina; guía en directo solo si la ida y vuelta de la luz es <= 3 s."
+  },
+  "perfiles": [
+    {
+      "id": "iss",
+      "nombre": "Órbita baja (ISS)",
+      "name_en": "Low Earth orbit (ISS)",
+      "enlace": "iss",
+      "tasa_medica_kbps": 10000,
+      "retardo": "Casi tiempo real",
+      "cortes": "Enlace casi continuo",
+      "evacuacion": "Menos de 24 h hasta atención definitiva",
+      "evacuacion_max_h": 24,
+      "evacuacion_fuente": "NTRS 20240011063 (PROPUESTA 1b)",
+      "reabastecimiento": "Sí, con cargueros",
+      "gravedad_g": 0,
+      "quien_decide_normalmente": "La Tierra"
+    },
+    {
+      "id": "luna_orbita",
+      "nombre": "Órbita lunar y viaje a la Luna",
+      "name_en": "Lunar orbit and transit",
+      "enlace": "luna",
+      "tasa_medica_kbps": 5000,
+      "retardo": "Segundos (1,3 s por sentido solo por la distancia)",
+      "cortes": "Enlace continuo con relé (SIMPLIFICADO: no se modelan los pasos por detrás de la Luna)",
+      "evacuacion": "Días",
+      "evacuacion_max_h": null,
+      "evacuacion_fuente": "PROPUESTA 1b (COMPROBAR el número de días)",
+      "reabastecimiento": "Limitado",
+      "gravedad_g": 0,
+      "quien_decide_normalmente": "La Tierra, con apoyo de a bordo"
+    },
+    {
+      "id": "luna_rele",
+      "nombre": "Polo sur lunar, con satélite repetidor",
+      "name_en": "Lunar south pole, with relay",
+      "enlace": "luna_rele",
+      "tasa_medica_kbps": 5000,
+      "retardo": "Segundos",
+      "cortes": "Enlace continuo gracias al repetidor",
+      "evacuacion": "Hasta unos 14 días estabilizando a bordo",
+      "evacuacion_max_h": 336,
+      "evacuacion_fuente": "NTRS 20240011063 (PROPUESTA 1b)",
+      "reabastecimiento": "Muy limitado",
+      "gravedad_g": 0.16,
+      "quien_decide_normalmente": "Compartido"
+    },
+    {
+      "id": "luna_polo_sur",
+      "nombre": "Polo sur lunar, sin repetidor",
+      "name_en": "Lunar south pole, no relay",
+      "enlace": "luna_polo_sur",
+      "tasa_medica_kbps": 5000,
+      "retardo": "Segundos",
+      "cortes": "La Tierra solo es visible la mitad de cada mes sideral (27,32 d): hasta 13,66 d sin enlace. Calendario SIMULADO",
+      "evacuacion": "Hasta unos 14 días estabilizando a bordo",
+      "evacuacion_max_h": 336,
+      "evacuacion_fuente": "NTRS 20240011063 (PROPUESTA 1b)",
+      "reabastecimiento": "Muy limitado",
+      "gravedad_g": 0.16,
+      "quien_decide_normalmente": "Compartido; la tripulación en los huecos sin enlace"
+    },
+    {
+      "id": "marte_transito",
+      "nombre": "Viaje a Marte",
+      "name_en": "Mars transit",
+      "enlace": "marte_transito",
+      "tasa_medica_kbps": null,
+      "retardo": "De 0 a 22 min por sentido (aquí se usa la distancia Tierra-Marte de la fecha: cota superior)",
+      "cortes": "Semanas sin enlace en la conjunción solar (Marte a menos de 2° del Sol)",
+      "evacuacion": "No existe",
+      "evacuacion_max_h": null,
+      "evacuacion_fuente": "PROPUESTA 1b",
+      "reabastecimiento": "No",
+      "gravedad_g": 0,
+      "quien_decide_normalmente": "La tripulación, cada vez más"
+    },
+    {
+      "id": "marte_superficie",
+      "nombre": "Superficie de Marte",
+      "name_en": "Mars surface",
+      "enlace": "marte_superficie",
+      "tasa_medica_kbps": null,
+      "retardo": "De 3 a 22 min por sentido según la fecha",
+      "cortes": "Semanas sin enlace en la conjunción solar (SIMPLIFICADO: no se modelan los pases de los orbitadores repetidores)",
+      "evacuacion": "No existe",
+      "evacuacion_max_h": null,
+      "evacuacion_fuente": "PROPUESTA 1b",
+      "reabastecimiento": "No",
+      "gravedad_g": 0.38,
+      "quien_decide_normalmente": "La tripulación"
+    }
+  ]
+}
