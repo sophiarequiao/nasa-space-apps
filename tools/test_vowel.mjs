@@ -1,6 +1,7 @@
 // Test the sustained-vowel analysis with SYNTHETIC vowels of known jitter, shimmer and noise:  node tools/test_vowel.mjs
 // The vowel is built cycle by cycle: each cycle gets its own period (jitter) and amplitude (shimmer).
 // For independent random perturbations of relative size σ, the expected "local" jitter/shimmer is 1.13·σ.
+// The analysis matches 2 periods at a time, so it reads about half of that value: check the direction, not the number.
 import { analyzeVowelSamples } from '../src/sensors/voice.js';
 const FS = 48000;
 let seed = 3; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -37,6 +38,6 @@ for (const [name, p, expected] of cases) {
   const o = Object.fromEntries(r.observations.map(o => [o.signal, o.value]));
   console.log(`${name}  (${Math.round(performance.now() - t0)} ms)`);
   console.log(r.observations.length
-    ? `   held ${o.max_phonation_time} s · jitter ${o.jitter} %${expected ? ' (expected ~' + expected.jitter + ')' : ''} · shimmer ${o.shimmer} %${expected ? ' (expected ~' + expected.shimmer + ')' : ''} · HNR ${o.vowel_harmonicity} dB · f0 ${o.vowel_f0} Hz · breaks ${o.voice_breaks} · quality ${r.observations[0].quality}`
+    ? `   held ${o.max_phonation_time} s · jitter ${o.jitter} %${expected ? ' (true ~' + expected.jitter + ', reads about half)' : ''} · shimmer ${o.shimmer} %${expected ? ' (true ~' + expected.shimmer + ', reads about half)' : ''} · HNR ${o.vowel_harmonicity} dB · f0 ${o.vowel_f0} Hz · breaks ${o.voice_breaks} · quality ${r.observations[0].quality}`
     : '   ' + r.summary.text);
 }

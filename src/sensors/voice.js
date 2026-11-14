@@ -173,13 +173,18 @@ export function analyzeSamples(x, fs, baseline = {}, options = {}) {
 //   jitter (%)              cycle-to-cycle variation of the pitch period (rough or hoarse voice raises it)
 //   shimmer (%)             cycle-to-cycle variation of the amplitude (breathy or hoarse voice raises it)
 //   vowel_harmonicity (dB)  harmonics-to-noise ratio of the vowel (breathy or hoarse voice lowers it)
-//   vowel_f0 (Hz), voice_breaks (count of interruptions or pitch jumps; max_phonation_time is the longest unbroken stretch)
-// Checked on synthetic vowels: all measures move in the right direction, but large jitter and shimmer are
-// under-read (about 0.6-0.75 of the true value) because the fundamental is band-pass filtered before timing.
+//   vowel_f0 (Hz), voice_breaks (interruptions of 100 ms or more + stretches with no clear period; max_phonation_time is the longest unbroken stretch)
+// Method: cycle-by-cycle waveform matching over 2 periods (normalised cross-correlation). Checked on synthetic
+// vowels: every measure moves in the right direction, but jitter and shimmer read about half of the true
+// cycle-to-cycle value, because each match averages two periods (the price of working in room noise).
+// Real test (one speaker, laptop microphone, noisy room, 18-24 dB above the noise): 4 normal vowels gave
+// jitter 0.14-0.18 %, shimmer 4.3-6.0 %, harmonicity 15-17 dB, held 4.8-5.8 s, 0 breaks; a deliberately hoarse one gave
+// jitter 0.35 %, shimmer 8.7 %, harmonicity 8.6 dB, held 1.3 s. The browser noise filter must be OFF: it damages a held vowel.
 // These are screening measures compared with the person's own baseline. They are NOT a diagnosis, and the values
 // are not interchangeable with clinical software (different filters and definitions). Thresholds are ASSUMPTIONS.
 export const VOWEL_SIGNALS = ['max_phonation_time', 'jitter', 'shimmer', 'vowel_harmonicity', 'vowel_f0', 'voice_breaks'];
 const FS_VOWEL = 48000;         // cycle timing needs a finer time grid than 16 kHz
+const MATCH_PERIODS = 2;        // periods compared in the waveform match: 2 is steadier in room noise than 1 (tuned on real recordings)
 
 export async function analyzeVowel(audioBlob, baseline = {}, options = {}) {
   const buf = await audioBlob.arrayBuffer();
@@ -220,67 +225,87 @@ export function analyzeVowelSamples(x, fs, baseline = {}, options = {}) {
     const r = yin(s, o, wYin, FS, tauMin, tauMax);
     if (r) { f0Frame[t] = r.f; dFrame[t] = r.d; }
   }
-  let voice = closeGaps(Array.from(f0Frame, v => !Number.isNaN(v)), Math.round(0.10 / HOP_S));   // gaps < 100 ms do not end the vowel
-  // 2) The vowel = longest continuous voiced run
-  let best = [0, -1], start = -1, runs = 0;
-  for (let t = 0; t <= nF; t++) {
+  const voice = closeGaps(Array.from(f0Frame, v => !Number.isNaN(v)), Math.round(0.10 / HOP_S));   // gaps < 100 ms do not end the vowel
+  // 2) Voiced stretches of at least 200 ms. Stretches more than 10 dB quieter than the loudest one are
+  //    other people talking in the room, not the vowel (seen in real recordings).
+  let runs = [];
+  for (let t = 0, start = -1; t <= nF; t++) {
     if (t < nF && voice[t]) { if (start < 0) start = t; }
     else if (start >= 0) {
-      if (t - start >= 20) runs++;                                  // voiced stretches of at least 200 ms
-      if (t - start > best[1] - best[0] + 1) best = [start, t - 1];
+      if (t - start >= 20) runs.push({ a: start, b: t - 1, level: median(Array.from(dbs.subarray(start, t))) });
       start = -1;
     }
   }
-  const mpt = (best[1] - best[0] + 1) * HOP_S;
-  if (best[1] < 0 || mpt < 1) return empty(dur, 'No sustained vowel detected: say "aaaa" for at least 2 seconds, close to the microphone.');
+  const loudest = Math.max(-Infinity, ...runs.map(r => r.level));
+  runs = runs.filter(r => r.level > loudest - 10);
+  const voiced = runs.reduce((p, r) => p + (r.b - r.a + 1), 0) * HOP_S;
+  const mpt = Math.max(0, ...runs.map(r => r.b - r.a + 1)) * HOP_S;            // longest unbroken stretch
+  if (voiced < 1) return empty(dur, 'No sustained vowel detected: say "aaaa" for at least 2 seconds, close to the microphone.', { range });
 
-  // 3) Pitch and harmonicity over the vowel, skipping 100 ms at each end (onset and release are not steady)
-  const a = best[0] + 10, b = best[1] - 10;
-  const f0s = [], hnrs = [];
-  for (let t = a; t <= b; t++) if (!Number.isNaN(f0Frame[t])) { f0s.push(f0Frame[t]); hnrs.push(Math.min(30, 10 * Math.log10((1 - dFrame[t]) / Math.max(dFrame[t], 1e-3)))); }
-  const f0m = median(f0s);
-  const hnr = hnrs.reduce((p, c) => p + c, 0) / hnrs.length;
-
-  // 4) Cycle marks at full rate: isolate the fundamental (0.6-1.5 × f0) and take its upward zero crossings,
-  //    interpolated between samples. Period Ti = distance between crossings; amplitude Ai = peak-to-peak of the cycle.
-  const i0 = Math.round(a * HOP_S * fs), i1 = Math.min(hi.length, Math.round((b + 1) * HOP_S * fs));
-  const seg = hi.subarray(i0, i1);
-  let fund = biquad(biquad(seg, fs, 'highpass', 0.6 * f0m), fs, 'highpass', 0.6 * f0m);
-  fund = biquad(biquad(fund, fs, 'lowpass', 1.5 * f0m), fs, 'lowpass', 1.5 * f0m);
-  const zc = [];
-  for (let i = Math.round(0.05 * fs); i < fund.length - 1; i++) if (fund[i] <= 0 && fund[i + 1] > 0) zc.push(i + (-fund[i]) / (fund[i + 1] - fund[i]));
-  const T = [], A = [];
-  for (let k = 0; k + 1 < zc.length; k++) {
-    T.push((zc[k + 1] - zc[k]) / fs);
-    let mx = -Infinity, mn = Infinity;
-    for (let i = Math.floor(zc[k]); i < Math.ceil(zc[k + 1]); i++) { if (seg[i] > mx) mx = seg[i]; if (seg[i] < mn) mn = seg[i]; }
-    A.push(mx - mn);
+  // 3) Cycle by cycle, by waveform matching: the period at time t is the lag that makes the next MATCH_PERIODS
+  //    periods look most like the current ones (normalised cross-correlation, interpolated between samples).
+  //    It uses every harmonic, so it still works when the microphone barely picks up the fundamental (laptop mics).
+  const xc = biquad(biquad(biquad(hi, fs, 'highpass', 70), fs, 'lowpass', 3000), fs, 'lowpass', 3000);
+  const inRuns = []; for (const r of runs) for (let t = r.a; t <= r.b; t++) if (!Number.isNaN(f0Frame[t])) inRuns.push(f0Frame[t]);
+  const f0m0 = median(inRuns), hopN = HOP_S * fs;
+  const localF0 = (frame) => {
+    const v = []; for (let t = Math.max(0, frame - 3); t <= Math.min(nF - 1, frame + 3); t++) if (!Number.isNaN(f0Frame[t])) v.push(f0Frame[t]);
+    const f = v.length ? median(v) : f0m0;
+    return f > 0.75 * f0m0 && f < 1.33 * f0m0 ? f : f0m0;                      // a pitch-tracker slip must not move the search range
+  };
+  let dT = 0, dA = 0, sT = 0, sA = 0, sC = 0, pairs = 0, kept = 0, cycles = 0, bad = 0, badStretches = 0, analysed = 0;
+  for (const r of runs) {
+    const margin = r.b - r.a + 1 >= 40 ? 10 : 5;                              // onset and release are not steady
+    let t = (r.a + margin) * hopN; const end = (r.b - margin + 1) * hopN;
+    let prevT = NaN, prevA = NaN, badRun = 0;
+    while (t < end) {
+      const T0 = fs / localF0(Math.floor(t / hopN)), W = Math.round(MATCH_PERIODS * T0), i = Math.round(t);
+      const lo = Math.floor(0.85 * T0), up = Math.ceil(1.18 * T0);
+      if (i + up + W + 2 >= xc.length) break;
+      let saa = 0; for (let j = 0; j < W; j++) saa += xc[i + j] * xc[i + j];
+      let best = -2, bl = lo; const cs = new Float32Array(up - lo + 1);
+      for (let l = lo; l <= up; l++) {
+        let sab = 0, sbb = 0; const o = i + l;
+        for (let j = 0; j < W; j++) { const v = xc[o + j]; sab += xc[i + j] * v; sbb += v * v; }
+        const c = sab / Math.sqrt(saa * sbb + 1e-20); cs[l - lo] = c;
+        if (c > best) { best = c; bl = l; }
+      }
+      const k = bl - lo; cycles++;
+      if (k === 0 || k === cs.length - 1 || best < 0.5) {                       // no clear period here: break, pitch jump or noise
+        bad++; badRun++; if (badRun === 2) badStretches++;
+        prevT = NaN; t += T0; continue;
+      }
+      badRun = 0;
+      const den = cs[k - 1] - 2 * cs[k] + cs[k + 1];
+      const tau = den < 0 ? bl + 0.5 * (cs[k - 1] - cs[k + 1]) / den : bl;
+      let mx = -Infinity, mn = Infinity;
+      for (let j = i; j < i + bl; j++) { if (xc[j] > mx) mx = xc[j]; if (xc[j] < mn) mn = xc[j]; }
+      const Tk = tau / fs, Ak = mx - mn;
+      sT += Tk; sA += Ak; sC += best; kept++; analysed += Tk;
+      if (!Number.isNaN(prevT)) { dT += Math.abs(Tk - prevT); dA += Math.abs(Ak - prevA); pairs++; }
+      prevT = Tk; prevA = Ak; t += tau;
+    }
   }
-  const medT = median(T);
-  const ok = T.map(v => v > 0.8 * medT && v < 1.25 * medT);          // cycles far from the median period are breaks or pitch jumps
-  let dT = 0, dA = 0, sT = 0, sA = 0, pairs = 0, kept = 0, breaks = Math.max(0, runs - 1);   // interruptions of the vowel + pitch jumps inside it
-  for (let k = 0; k < T.length; k++) {
-    if (!ok[k]) { if (k === 0 || ok[k - 1]) breaks++; continue; }
-    sT += T[k]; sA += A[k]; kept++;
-    if (k + 1 < T.length && ok[k + 1]) { dT += Math.abs(T[k + 1] - T[k]); dA += Math.abs(A[k + 1] - A[k]); pairs++; }
-  }
-  const irregular = Math.round(1000 * breaks / Math.max(1, T.length)) / 10;   // % of cycles that start an irregular stretch
+  const irregular = Math.round(1000 * bad / Math.max(1, cycles)) / 10;         // % of cycles without a clear period
   if (pairs < 20) return empty(dur, 'The vowel is too short or too unsteady to measure: try again, holding one steady note.', { range, irregular });
-  // Many irregular cycles on a held vowel almost always mean background noise, not the voice (seen in a real noisy room)
-  if (breaks > 0.15 * T.length) return empty(dur, 'Too much background noise to measure the vowel: move somewhere quieter or use a headset microphone.', { range, irregular });
+  if (irregular > 25) return empty(dur, 'The vowel is too irregular or too noisy to measure: try again closer to the microphone, or somewhere quieter.', { range, irregular });
   const jitter = 100 * (dT / pairs) / (sT / kept), shimmer = 100 * (dA / pairs) / (sA / kept);
+  const c = Math.min(0.999, sC / kept), hnr = 10 * Math.log10(c / (1 - c));    // harmonics-to-noise ratio from the mean match
+  const breaks = runs.length - 1 + badStretches;                               // interruptions >= 100 ms + stretches without a clear period
 
-  const quality = r2(clamp((range - 15) / 15) * clamp(mpt / 2));      // jitter and shimmer need a clean signal: 15 dB -> 0, 30 dB -> 1 (ASSUMPTION)
+  // Quality: 4 real recordings at 18-24 dB above the room noise gave stable values; below 10 dB nothing is usable (ASSUMPTION)
+  const qS = clamp((range - 10) / 10), quality = r2(qS * clamp(analysed / 1.5));
   const measures = [
-    ['max_phonation_time', Math.round(mpt * 10) / 10, 's', 'estimated', quality],
+    ['max_phonation_time', Math.round(mpt * 10) / 10, 's', 'estimated', r2(qS)],
     ['jitter', r2(jitter), '%', 'estimated', quality],
     ['shimmer', r2(shimmer), '%', 'estimated', quality],
     ['vowel_harmonicity', Math.round(hnr * 10) / 10, 'dB', 'estimated', quality],
-    ['vowel_f0', Math.round(f0m * 10) / 10, 'Hz', 'estimated', quality],
-    ['voice_breaks', breaks, 'count', 'estimated', quality],
+    ['vowel_f0', Math.round(kept / sT * 10) / 10, 'Hz', 'estimated', quality],
+    ['voice_breaks', breaks, 'count', 'estimated', r2(qS)],
   ];
   const observations = measures.map(([signal, value, unit, method, q]) => ({ crew, signal, value, unit, time, source: 'microphone', method, quality: q, region: 'lungs' }));
-  return { observations, summary: summarize(observations, baseline, { dur, messageDur: mpt, quality, range, irregular }) };
+  return { observations, summary: summarize(observations, baseline, { dur, messageDur: mpt, quality, range, irregular,
+    lowText: 'Low recording quality: repeat the vowel closer to the microphone or somewhere quieter.' }) };
 }
 
 // ---------------------------------------------------------------------------
@@ -322,7 +347,7 @@ function summarize(obs, baseline, info) {
     }
   }
   let text;
-  if (info.quality < 0.4) text = 'Low recording quality: repeat the message somewhere quieter and speak for at least 10 s.';
+  if (info.quality < 0.4) text = info.lowText || 'Low recording quality: repeat the message somewhere quieter and speak for at least 10 s.';
   else if (changes.length) text = 'Change from your personal baseline in: ' + changes.map(c => NAMES[c.signal].toLowerCase()).join(', ') + '.';
   else text = 'Within your personal baseline.';
   return { duration_s: r2(info.dur), message_duration_s: r2(info.messageDur), quality: info.quality, snr_db: r2(info.range),

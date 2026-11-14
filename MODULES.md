@@ -64,3 +64,17 @@ Browser test pages (serve the repo root, e.g. `python -m http.server 8000`): `to
 - `tools/generate_earth_mars_link.py` and its CSV keep their original Spanish comments and column names.
 
 AI use: code drafted with AI assistance (Claude, Anthropic) and reviewed by the team. Licence: MIT.
+
+## Sustained vowel test (`src/sensors/voice.js`)
+
+```js
+import { analyzeVowel, VOWEL_SIGNALS } from './src/sensors/voice.js';
+const { observations, summary } = await analyzeVowel(blob, baseline, { crew: 'CM-2' });
+```
+
+- Task for the crew member: take a breath and say "aaaa" on one steady note for as long as comfortable.
+- Signals (`region: 'lungs'`): `max_phonation_time` (s), `jitter` (%), `shimmer` (%), `vowel_harmonicity` (dB), `vowel_f0` (Hz), `voice_breaks` (count).
+- Record with `getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } })`. The browser noise filter damages a held vowel.
+- `observations` is empty when nothing could be measured; `summary.text` says why, and `summary.snr_db` / `summary.irregular_cycles_pct` give the diagnostics.
+- Real test (one speaker, laptop microphone, noisy room): 4 normal vowels were stable (jitter 0.14-0.18 %, harmonicity 15-17 dB, held 4.8-5.8 s); a deliberately hoarse one moved every measure (jitter 0.35 %, harmonicity 8.6 dB, held 1.3 s).
+- Limits: values are comparable only with the same person's baseline on the same microphone, not with clinical software. A whispered vowel is reported as "no sustained vowel". Not a diagnosis.

@@ -12,7 +12,7 @@
 <p>Take a breath and say <b>"aaaa"</b> on one steady, comfortable note for as long as you comfortably can, 10-15 cm from the microphone. The audio never leaves the browser.</p>
 <p><b>1.</b> <label>Label of the next recording <input id="label" value="normal" size="14"></label></p>
 <p><b>2.</b> <button id="rec">● Record</button><button id="stop" disabled>■ Stop</button>
-<label><input id="ns" type="checkbox" checked> Browser noise filter</label></p>
+<label><input id="ns" type="checkbox"> Browser noise filter <small>(leave OFF: it damages a held vowel)</small></label></p>
 <p><b>3.</b> <a id="download" style="display:none">⬇ Download this recording</a><span id="nodl"><small>The download link appears here after each recording.</small></span></p>
 <p id="status">Ready.</p>
 <p id="verdict" style="font-weight:600"></p>
@@ -55,7 +55,7 @@ async function analyze(blob) {
   const t0 = performance.now();
   const r = await analyzeVowel(blob, baseline(), { crew: 'CM-2' });
   last = r; $('calibrate').disabled = !r.observations.length;
-  $('status').textContent = `Done in ${Math.round(performance.now() - t0)} ms · quality ${r.summary.quality} · SNR ${r.summary.snr_db ?? '—'} dB · irregular cycles ${r.summary.irregular_cycles_pct ?? '—'} % (limit 15)`;
+  $('status').textContent = `Done in ${Math.round(performance.now() - t0)} ms · quality ${r.summary.quality} · SNR ${r.summary.snr_db ?? '—'} dB · irregular cycles ${r.summary.irregular_cycles_pct ?? '—'} % (limit 25)`;
   const good = r.observations.length > 0;
   $('verdict').textContent = good ? '✔ ACCEPTED — this recording was measured.' : '✖ REJECTED — not measured, so "Add to my baseline" stays off. Download it anyway, then record again.';
   $('verdict').style.color = good ? '#15803d' : '#b91c1c';
