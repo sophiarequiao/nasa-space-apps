@@ -30,7 +30,7 @@ let DATA = null;
 export function setLinkData(d) { DATA = d; }
 /** Fetches data/mars_link.json (browser). Pass another URL if the app keeps its data elsewhere. */
 export async function loadLinkData(url = new URL('../../data/mars_link.json', import.meta.url)) {
-  DATA = await (await fetch(url)).json();
+  DATA = await (await fetch(url, { cache: 'no-cache' })).json();   // always revalidate: data files change during development
   return DATA;
 }
 

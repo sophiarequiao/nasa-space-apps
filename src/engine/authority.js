@@ -26,7 +26,7 @@ export function setAuthorityData({ profiles, cards }) {
 }
 /** Fetches the default data files (browser), including the Mars link table. */
 export async function loadAuthorityData(base = new URL('../../data/', import.meta.url)) {
-  const get = (f) => fetch(new URL(f, base)).then(r => r.json());
+  const get = (f) => fetch(new URL(f, base), { cache: 'no-cache' }).then(r => r.json());
   const [profiles, cards] = await Promise.all([get('mission_profiles.json'), get('condition_cards.json'), loadLinkData(new URL('mars_link.json', base))]);
   setAuthorityData({ profiles, cards });
 }
