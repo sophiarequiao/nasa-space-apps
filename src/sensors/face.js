@@ -5,12 +5,14 @@
 //     blink_rate (blinks/min)   spontaneous blink rate over the window
 //     perclos (%)               share of time with the eyes closed (the classic drowsiness measure, Wierwille 1994 / Dinges 1998)
 //     long_closures (count)     eyelid closures longer than 500 ms: slow "droops", not blinks
-//     yawns (count)             mouth wide open for more than 1.5 s
+//     yawns (count)             mouth wide open for more than 1 s
 //     roi: face zone (forehead and cheeks) as fractions of the frame; pass it to rppg.js with setPulseRoi()
 //     observations: app-format objects once the window is long enough
 //   options: { crew, window_s (default 60), modelUrl, wasmUrl }
 // What it is: a screening signal of eyelid behaviour compared with the person's own baseline. It is NOT a diagnosis
 // and cannot tell pain, illness or stress from a face. All thresholds are ASSUMPTIONS to be tuned with real data.
+// Real test (one person, 3 min): blink rate 8/min at rest and 19/min blinking on purpose; PERCLOS 1 % at rest and
+// 36 % with slow eye closures. Known limit: looking down (e.g. at the keyboard) reads as eyes closing.
 // Privacy: the video never leaves the browser and is not stored; only the eyelid and mouth scores are kept.
 // Drafted with AI assistance (Claude, Anthropic). MIT licence. MediaPipe is vendored in vendor/mediapipe (Apache-2.0).
 
@@ -18,7 +20,8 @@ const CLOSED = 0.5, OPEN = 0.3;        // blink score hysteresis: closing above 
 const PERCLOS_LEVEL = 0.6;             // eyes counted as closed for PERCLOS above this score (ASSUMPTION)
 const LONG_CLOSURE_MS = 500;           // longer than a blink (blinks last ~100-400 ms)
 const MAX_BLINK_MS = 500;
-const YAWN_LEVEL = 0.6, YAWN_MS = 1500;// jawOpen above 0.6 for 1.5 s (ASSUMPTION)
+const YAWN_LEVEL = 0.5, YAWN_MS = 1000;// jawOpen above 0.5 for 1 s (ASSUMPTION; with 0.6 / 1.5 s a real test caught 1 of 2 yawns)
+const GAP_MS = 300;                    // a longer hole between samples means the face was lost: open events are dropped
 const MIN_WINDOW_S = 20, WINDOW_S = 60;
 
 // ---------------------------------------------------------------------------
@@ -26,10 +29,12 @@ const MIN_WINDOW_S = 20, WINDOW_S = 60;
 export function createEyeTracker() {
   const samples = [];                  // { t, blink, jaw } with t in ms
   const blinks = [], closures = [], yawns = [];   // events: { t, ms }
-  let closedSince = null, yawnSince = null, yawnCounted = false;
+  let closedSince = null, yawnSince = null, yawnCounted = false, lastT = null;
   return {
     /** @param {number} t ms · @param {number} blink 0 (open) .. 1 (closed) · @param {number} jaw 0 .. 1 (mouth wide open) */
     push(t, blink, jaw = 0) {
+      if (lastT != null && t - lastT > GAP_MS) { closedSince = null; yawnSince = null; }   // face lost (looking away): not an eyelid closure
+      lastT = t;
       samples.push({ t, blink, jaw });
       if (closedSince == null && blink > CLOSED) closedSince = t;
       else if (closedSince != null && blink < OPEN) {

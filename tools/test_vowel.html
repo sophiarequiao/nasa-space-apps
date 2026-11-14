@@ -68,7 +68,7 @@ const COLS = ['label', 'time', ...VOWEL_SIGNALS, 'quality', 'snr_db'];
 function drawHist() { $('hist').innerHTML = '<tr>' + COLS.map(c => `<th>${c}</th>`).join('') + '</tr>' + HIST.map(x => '<tr>' + COLS.map(c => `<td>${x[c] ?? ''}</td>`).join('') + '</tr>').join(''); }
 
 $('rec').onclick = async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: false } });
   rec = new MediaRecorder(stream); chunks = [];
   rec.ondataavailable = (e) => chunks.push(e.data);
   rec.onstop = () => {

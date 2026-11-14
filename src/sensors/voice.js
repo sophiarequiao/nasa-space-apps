@@ -265,9 +265,11 @@ export function analyzeVowelSamples(x, fs, baseline = {}, options = {}) {
     if (k + 1 < T.length && ok[k + 1]) { dT += Math.abs(T[k + 1] - T[k]); dA += Math.abs(A[k + 1] - A[k]); pairs++; }
   }
   if (pairs < 20) return empty(dur, 'The vowel is too short or too unsteady to measure: try again, holding one steady note.');
+  // Many irregular cycles on a held vowel almost always mean background noise, not the voice (seen in a real noisy room)
+  if (breaks > 0.15 * T.length) return empty(dur, 'Too much background noise to measure the vowel: move somewhere quieter or use a headset microphone.');
   const jitter = 100 * (dT / pairs) / (sT / kept), shimmer = 100 * (dA / pairs) / (sA / kept);
 
-  const quality = r2(clamp((range - 6) / 14) * clamp(mpt / 2));       // needs signal well above the noise and >= 2 s of vowel
+  const quality = r2(clamp((range - 15) / 15) * clamp(mpt / 2));      // jitter and shimmer need a clean signal: 15 dB -> 0, 30 dB -> 1 (ASSUMPTION)
   const measures = [
     ['max_phonation_time', Math.round(mpt * 10) / 10, 's', 'estimated', quality],
     ['jitter', r2(jitter), '%', 'estimated', quality],
