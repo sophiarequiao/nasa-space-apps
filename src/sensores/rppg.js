@@ -8,8 +8,10 @@
 //   opciones: { tripulante, metodo:'verde'|'pos', roi:{x,y,w,h} (fracciones del fotograma), ventana_s, calidad_min }
 // Método (versión sin MediaPipe): zona fija donde la persona coloca la cara -> media de R, G y B por fotograma
 //   -> remuestreo a 30 Hz -> quitar tendencia -> paso banda 0,7-3 Hz -> espectro en ventana de 12 s -> pico = pulso.
-//   'verde': canal verde (Verkruysse et al. 2008). 'pos': combinación de los tres canales, más robusta al
-//   movimiento (Wang et al. 2017; aquí simplificada a una sola ventana).
+//   'pos' (por defecto): combinación de los tres canales, más robusta al movimiento (Wang et al. 2017; aquí
+//   simplificada a una sola ventana). 'verde': solo el canal verde (Verkruysse et al. 2008).
+//   Con una grabación real de 2 min (quieto / moviéndose / quieto), 'pos' no mostró ningún valor falso y
+//   'verde' mostró tres (48, 51 y 65 lpm); por eso 'pos' es el método por defecto.
 // Calidad = fracción de la potencia de la banda que está en el pico (0-1), penalizada si el valor no es estable.
 // Umbrales marcados HIPÓTESIS: del equipo, a ajustar con la validación del domingo.
 // Privacidad: la imagen no sale del navegador ni se guarda; solo se calcula la media de color de la zona.
@@ -29,7 +31,7 @@ let S = null;   // estado de la sesión en curso
 export async function iniciarPulso(videoEl, onResultado, opciones = {}) {
   detenerPulso();
   const s = S = {
-    video: videoEl, cb: onResultado, op: { metodo: 'verde', tripulante: 'CM-1', ...opciones },
+    video: videoEl, cb: onResultado, op: { metodo: 'pos', tripulante: 'CM-1', ...opciones },
     t: [], r: [], g: [], b: [], activo: true, propio: false, ultimos: [], idFrame: null, timer: null,
     canvas: document.createElement('canvas'),
   };
@@ -108,7 +110,7 @@ export function detenerPulso() {
 // ---------------------------------------------------------------------------
 // Núcleo puro (sin APIs del navegador): se puede probar en Node.
 // t_ms: instantes de cada fotograma (ms); r, g, b: medias de color de la zona (0-255)
-export function estimarPulso(t_ms, r, g, b, { metodo = 'verde', ventana_s = VENTANA_S } = {}) {
+export function estimarPulso(t_ms, r, g, b, { metodo = 'pos', ventana_s = VENTANA_S } = {}) {
   const vacio = (extra) => ({ bpm_bruto: null, calidad: 0, motivo: null, progreso: 0, fps: 0, luz: null, senal: [], ...extra });
   const n0 = t_ms.length;
   if (n0 < 10) return vacio({});
