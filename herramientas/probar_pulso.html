@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prueba rppg.js · SOSpesAI</title>
+<style>
+  body{font-family:system-ui;max-width:820px;margin:auto;padding:1rem}
+  button,select,input{font-size:1rem;padding:.4rem .6rem;margin:.15rem}
+  #caja{position:relative;width:480px;max-width:100%}
+  video{width:100%;transform:scaleX(-1);background:#000;border-radius:8px;display:block}
+  #roi{position:absolute;border:3px solid #22c55e;border-radius:40%;left:32%;top:18%;width:36%;height:50%;pointer-events:none}
+  #bpm{font-size:3.2rem;font-weight:700;margin:.2rem 0}
+  #barra{height:10px;background:#ddd;border-radius:5px;overflow:hidden;width:480px;max-width:100%} #barra div{height:100%;background:#22c55e;width:0}
+  table{border-collapse:collapse;width:100%;font-size:.9rem} td,th{border-bottom:1px solid #ddd;padding:.25rem;text-align:left}
+  small{color:#555}
+</style>
+<body>
+<h1>Prueba de rppg.js (pulso por cámara)</h1>
+<p><small>Coloca la cara dentro del óvalo verde, con luz de frente, y quédate quieto 15 s sin hablar. La imagen no sale del navegador ni se guarda.</small></p>
+<button id="ini">▶ Iniciar</button><button id="fin" disabled>■ Detener</button>
+<label>Método <select id="metodo"><option value="verde">verde</option><option value="pos">pos</option></select></label>
+<div id="caja"><video id="v" playsinline muted></video><div id="roi"></div></div>
+<p id="bpm">—</p>
+<div id="barra"><div></div></div>
+<p id="info"><small>Sin iniciar.</small></p>
+<canvas id="onda" width="480" height="70" style="max-width:100%;border:1px solid #ddd"></canvas>
+
+<h3>Validación (para Miguel)</h3>
+<p><small>Con el pulso estable, mira el pulsioxímetro, escribe su valor y pulsa «Guardar medida». Se guarda siempre la estimación de la cámara, aunque la app no la muestre por baja calidad.</small></p>
+<label>Persona <input id="persona" value="P1" size="4"></label>
+<label>Condición <select id="cond"><option>buena_luz</option><option>poca_luz</option><option>movimiento</option><option>tras_esfuerzo</option></select></label>
+<label>Lux <input id="lux" size="5" placeholder="opc."></label>
+<label>Referencia (lpm) <input id="ref" size="4" inputmode="numeric"></label>
+<button id="guardar" disabled>Guardar medida</button>
+<button id="csv">⬇ Descargar CSV</button><button id="borrar">Borrar todo</button>
+<p id="resumen"></p>
+<table id="tabla"></table>
+
+<script type="module">
+import { iniciarPulso, detenerPulso } from '../src/sensores/rppg.js';
+const $ = (id) => document.getElementById(id);
+const MOTIVOS = { reuniendo_datos: 'reuniendo datos…', poca_luz: 'poca luz', imagen_saturada: 'demasiada luz (imagen quemada)',
+  pocos_fotogramas: 'la cámara va muy lenta', senal_debil: 'señal débil: más luz de frente y quieto', inestable: 'valor inestable: no te muevas' };
+let ultimo = null;
+const leer = () => { try { return JSON.parse(localStorage.getItem('validacion_pulso') || '[]'); } catch { return []; } };
+const escribir = (v) => { try { localStorage.setItem('validacion_pulso', JSON.stringify(v)); } catch {} };
+
+function onda(senal) {
+  const c = $('onda'), g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height);
+  if (!senal || senal.length < 2) return;
+  const m = Math.max(...senal.map(Math.abs)) || 1; g.beginPath(); g.strokeStyle = '#dc2626'; g.lineWidth = 1.5;
+  senal.forEach((v, i) => { const x = i / (senal.length - 1) * c.width, y = c.height / 2 - v / m * (c.height / 2 - 4); i ? g.lineTo(x, y) : g.moveTo(x, y); });
+  g.stroke();
+}
+function alResultado(r) {
+  ultimo = r; $('guardar').disabled = r.bpm_bruto == null;
+  $('bpm').textContent = r.bpm != null ? `${r.bpm} lpm` : '—';
+  $('bpm').style.color = r.bpm != null ? '#111' : '#999';
+  $('barra').firstChild.style.width = `${Math.round((r.estado === 'midiendo' ? r.progreso : r.calidad) * 100)}%`;
+  $('barra').firstChild.style.background = r.estado === 'ok' ? '#22c55e' : (r.estado === 'midiendo' ? '#3b82f6' : '#f59e0b');
+  $('info').firstChild.textContent = `${r.estado}${r.motivo ? ' · ' + (MOTIVOS[r.motivo] || r.motivo) : ''} · calidad ${r.calidad} · estimación sin filtrar ${r.bpm_bruto ?? '—'} lpm · ${r.fps} fps · luz ${r.luz ?? '—'}/255`;
+  onda(r.senal);
+}
+$('ini').onclick = async () => {
+  try { await iniciarPulso($('v'), alResultado, { metodo: $('metodo').value, tripulante: 'CM-2' }); $('ini').disabled = true; $('fin').disabled = false; }
+  catch (e) { $('info').firstChild.textContent = 'No se pudo abrir la cámara: ' + e.message; }
+};
+$('fin').onclick = () => { detenerPulso(); $('ini').disabled = false; $('fin').disabled = true; $('guardar').disabled = true; };
+$('metodo').onchange = () => { if ($('ini').disabled) { detenerPulso(); $('ini').disabled = false; $('ini').click(); } };
+
+// --- Registro de validación: mismas columnas que 03_Datos/validacion_pulso.xlsx, más hora, método y si se mostró ---
+const COLS = ['id_medida', 'persona', 'condicion', 'lux', 'pulso_camara', 'calidad_camara', 'pulso_oximetro', 'diferencia', 'hora', 'metodo', 'mostrado'];
+function pintar() {
+  const f = leer();
+  $('tabla').innerHTML = '<tr>' + COLS.map(c => `<th>${c}</th>`).join('') + '</tr>' + f.map(x => '<tr>' + COLS.map(c => `<td>${x[c] ?? ''}</td>`).join('') + '</tr>').join('');
+  const d = f.filter(x => typeof x.diferencia === 'number');
+  const mae = (v) => v.length ? (v.reduce((a, x) => a + Math.abs(x.diferencia), 0) / v.length).toFixed(1) : '—';
+  $('resumen').textContent = d.length ? `${f.length} medidas · error medio absoluto: ${mae(d)} lpm (todas) · ${mae(d.filter(x => x.mostrado === 'si'))} lpm (solo las que la app mostraría)` : `${f.length} medidas`;
+}
+$('guardar').onclick = () => {
+  if (!ultimo || ultimo.bpm_bruto == null) return;
+  const f = leer(), ref = parseFloat($('ref').value);
+  f.push({ id_medida: f.length + 1, persona: $('persona').value, condicion: $('cond').value, lux: $('lux').value, pulso_camara: ultimo.bpm_bruto,
+    calidad_camara: ultimo.calidad, pulso_oximetro: Number.isFinite(ref) ? ref : '', diferencia: Number.isFinite(ref) ? Math.round((ultimo.bpm_bruto - ref) * 10) / 10 : '',
+    hora: new Date().toISOString().slice(11, 19), metodo: $('metodo').value, mostrado: ultimo.bpm != null ? 'si' : 'no' });
+  escribir(f); $('ref').value = ''; pintar();
+};
+$('csv').onclick = () => {
+  const f = leer(); const txt = [COLS.join(','), ...f.map(x => COLS.map(c => x[c] ?? '').join(','))].join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'text/csv' }));
+  a.download = `validacion_pulso_${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')}.csv`; a.click();
+};
+$('borrar').onclick = () => { if (leer().length === 0 || confirm('¿Borrar todas las medidas guardadas en este navegador?')) { escribir([]); pintar(); } };
+pintar();
+</script>
+</body></html>
