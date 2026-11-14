@@ -18,7 +18,9 @@ const PAUSA_MIN_S = 0.25;       // pausa = silencio > 250 ms (guía del equipo)
 const SILABA_MIN_S = 0.10;      // como mucho ~10 sílabas/s (HIPÓTESIS)
 const PROMINENCIA_DB = 2.0;     // un pico de sílaba sobresale >= 2 dB del valle anterior (HIPÓTESIS)
 const F0_MIN = 70, F0_MAX = 400;
-const YIN_UMBRAL = 0.15;
+const YIN_UMBRAL = 0.30;        // 0,15 perdía ~3/4 de las tramas con voz en una sala con ruido (ajustado con grabación real, HIPÓTESIS)
+const VOZ_CERCA_TRAMAS = 4;     // una trama es habla si hay tono a ±40 ms (HIPÓTESIS)
+const HUECO_MAX_S = 0.20;       // huecos < 200 ms (consonantes sordas) cuentan como habla (HIPÓTESIS)
 export const SENALES_VOZ = ['velocidad_habla', 'pausas', 'numero_pausas', 'duracion_media_pausa', 'f0_media', 'f0_variabilidad', 'duracion_mensaje'];
 
 // ---------------------------------------------------------------------------
@@ -58,7 +60,7 @@ export function analizarMuestras(x, fs, mediaPersonal = {}, opciones = {}) {
   }
   const dbs = mediaMovil(db, 5);
 
-  // 3) Detección de voz: energía > ruido + 3 dB Y tono detectado (YIN); huecos < 150 ms se rellenan
+  // 3) Detección de voz: energía > ruido + 3 dB Y tono detectado cerca (YIN); huecos < 200 ms se rellenan
   const p10 = percentil(dbs, 0.10), p95 = percentil(dbs, 0.95);
   const rango = p95 - p10;
   const umbral = p10 + Math.max(3, 0.2 * rango);              // HIPÓTESIS
@@ -74,8 +76,12 @@ export function analizarMuestras(x, fs, mediaPersonal = {}, opciones = {}) {
     if (f) { f0Trama[t] = f; if (t + 1 < nT) f0Trama[t + 1] = f; }
   }
   const sonora = (t) => !Number.isNaN(f0Trama[t]);
-  let voz = candidata.map((c, t) => c && (sonora(t) || (t > 1 && sonora(t - 2)) || (t + 2 < nT && sonora(t + 2))));
-  voz = cerrarHuecos(voz, Math.round(0.15 / PASO_S));          // consonantes sordas cortas
+  let voz = candidata.map((c, t) => {
+    if (!c) return false;
+    for (let k = Math.max(0, t - VOZ_CERCA_TRAMAS); k <= Math.min(nT - 1, t + VOZ_CERCA_TRAMAS); k++) if (sonora(k)) return true;
+    return false;
+  });
+  voz = cerrarHuecos(voz, Math.round(HUECO_MAX_S / PASO_S));   // consonantes sordas cortas
   const primero = voz.indexOf(true), ultimo = voz.lastIndexOf(true);
   if (primero < 0 || nT === 0) return vacio(tripulante, fecha, dur, 'No se detecta voz en la grabación.');
 
@@ -137,7 +143,9 @@ export function analizarMuestras(x, fs, mediaPersonal = {}, opciones = {}) {
       tripulante, senal, valor, unidad, fecha, fuente: 'microfono', metodo, calidad: q, region_cuerpo: 'cerebro',
     }));
 
-  return { observaciones, resumen: resumir(observaciones, mediaPersonal, { dur, durMensaje, calidad, rango }) };
+  const resumen = resumir(observaciones, mediaPersonal, { dur, durMensaje, calidad, rango });
+  if (opciones.depurar) resumen._depuracion = { dbs, umbral, p10, p95, candidata, f0Trama, voz, pausas };   // solo para ajustar
+  return { observaciones, resumen };
 }
 
 // ---------------------------------------------------------------------------
