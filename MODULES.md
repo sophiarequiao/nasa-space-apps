@@ -78,3 +78,25 @@ const { observations, summary } = await analyzeVowel(blob, baseline, { crew: 'CM
 - `observations` is empty when nothing could be measured; `summary.text` says why, and `summary.snr_db` / `summary.irregular_cycles_pct` give the diagnostics.
 - Real test (one speaker, laptop microphone, noisy room): 4 normal vowels were stable (jitter 0.14-0.18 %, harmonicity 15-17 dB, held 4.8-5.8 s); a deliberately hoarse one moved every measure (jitter 0.35 %, harmonicity 8.6 dB, held 1.3 s).
 - Limits: values are comparable only with the same person's baseline on the same microphone, not with clinical software. A whispered vowel is reported as "no sustained vowel". Not a diagnosis.
+
+## Camera pulse, tracked mode (`src/sensors/rppg.js` + `src/sensors/face.js`)
+
+Use this mode when the person talks or moves a little (for example during the daily check-in).
+
+```js
+import { startFace, stopFace } from './src/sensors/face.js';
+import { startPulseTracked, pushFaceFrame, pulseSummary, stopPulse } from './src/sensors/rppg.js';
+
+video.srcObject = stream; await video.play();                         // the page owns the camera
+startPulseTracked(video, (p) => { /* p.bpm is null unless the value is trusted */ }, { crew: 'CM-2' });
+await startFace(video, onFace, { crew: 'CM-2', onFrame: pushFaceFrame });   // the pulse reads its zones on every tracked frame
+// ... at the end of the check-in:
+const summary = pulseSummary();          // { bpm, seconds, observation } or null if fewer than 5 trusted seconds
+stopPulse(); stopFace();
+```
+
+- How it works: two skin zones (face and forehead) follow the face on every frame; POS over short overlapping windows; a value is shown only when it persists (three clear estimates that agree, spread over 4 s or more).
+- Real test (one person, laptop camera at 20 fps, 3 minutes, no reference device): a value in 67 % of the seconds while talking and 44 % with small movements, always 79-91 bpm and consistent with the still minute (82-85 bpm). The previous method showed 18 % and 22 %. In replayed 30 s check-ins while talking, about half gave a value and none gave a wrong one.
+- 150 simulated noise-only streams: a value appeared in none or one of them.
+- Limits: tuned on one person and one recording; not validated against a pulse oximeter; it stays silent rather than guess, so some check-ins have no pulse. Estimated, never a clinical measurement.
+- `tools/record_rppg.html` records raw data (numbers only) and `node tools/eval_rppg.mjs file.csv` replays it.

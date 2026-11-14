@@ -60,6 +60,7 @@
   .stage{position:relative;background:var(--ink);color:var(--paper);border-radius:6px;overflow:hidden;aspect-ratio:4/3;max-width:400px;margin-top:1rem}
   .stage video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
   #roi{position:absolute;border:2px solid #7FE0B0;border-radius:6px;display:none;pointer-events:none}
+  #bpmLive{position:absolute;right:.7rem;top:.6rem;font:600 1.3rem var(--display);text-shadow:0 1px 3px #000}
   #stageMsg{position:absolute;left:.7rem;right:.7rem;bottom:1.3rem;font-size:.875rem;text-shadow:0 1px 3px #000}
   #eye{position:absolute;left:0;right:0;bottom:0;height:6px;background:#ffffff30}
   #eye i{display:block;height:100%;width:0;background:#7FE0B0;transition:width .12s linear}
@@ -134,7 +135,7 @@
 
     <div id="livePane">
       <div class="stage">
-        <video id="v" playsinline muted></video><div id="roi"></div>
+        <video id="v" playsinline muted></video><div id="roi"></div><div id="bpmLive"></div>
         <div id="stageMsg">The camera is off. It watches the eyelids only; no image is stored or sent.</div>
         <div id="eye" title="Eye openness"><i></i></div>
       </div>
@@ -144,7 +145,7 @@
         <button id="finish" disabled>Finish now</button>
         <label><input id="useCam" type="checkbox" checked> Use the camera</label>
       </div>
-      <div class="row"><label><input id="usePulse" type="checkbox"> Also try the camera pulse. Experimental: only valid if you stay still and silent.</label></div>
+      <div class="row"><label><input id="usePulse" type="checkbox" checked> Pulse from the camera (experimental)</label></div>
       <div class="row"><span id="timer">0:30</span><div class="meter" title="Microphone level"><i id="lvl"></i></div></div>
       <p id="status" class="fine" aria-live="polite">The audio and the video never leave this device. Only the numbers are kept.</p>
       <div class="row"><button id="vowel">Add a voice check: say “aaaa”</button></div>
@@ -184,7 +185,7 @@ import { getLink, formatDuration } from '../src/engine/link.js';
 import { computeAuthority, loadAuthorityData, listProfiles, listConditions, getProfile } from '../src/engine/authority.js';
 import { analyzeVoice, analyzeVowel } from '../src/sensors/voice.js';
 import { startFace, stopFace } from '../src/sensors/face.js';
-import { startPulse, stopPulse, setPulseRoi } from '../src/sensors/rppg.js';
+import { startPulseTracked, pushFaceFrame, pulseSummary, stopPulse } from '../src/sensors/rppg.js';
 import { earlyWarning } from '../src/engine/earlyWarning.js';
 
 const $ = (id) => document.getElementById(id);
@@ -311,9 +312,6 @@ function onFace(r) {
   const box = $('roi').style;
   if (r.roi) {   // the video is mirrored on screen, so the box is mirrored too
     box.display = 'block'; box.left = `${(1 - r.roi.x - r.roi.w) * 100}%`; box.top = `${r.roi.y * 100}%`; box.width = `${r.roi.w * 100}%`; box.height = `${r.roi.h * 100}%`;
-    if (!$('usePulse').checked) { /* pulse is opt-in: it is only valid when the person is still and silent */ }
-    else if (!pulseOn) { pulseOn = true; startPulse($('v'), (p) => { if (p.observation) { live.pulse = p.observation; } }, { crew: 'CM-2', roi: r.roi }); }
-    else setPulseRoi(r.roi);
   } else box.display = 'none';
   if (r.eyeOpenness != null) $('eye').firstElementChild.style.width = `${Math.round(r.eyeOpenness * 100)}%`;
   if (r.observations && r.observations.length) { live.face = r.observations; render(); }
@@ -345,7 +343,9 @@ $('start').onclick = async () => {
       cam = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } }, audio: false });
       $('v').srcObject = cam; await $('v').play(); stageMsg('Loading the face model…'); status('Getting the camera ready. Wait for the countdown before you speak.');
       ready = new Promise((res) => { faceReady = res; setTimeout(res, 10000); });
-      startFace($('v'), onFace, { crew: 'CM-2' }).catch((e) => { stageMsg(`The eyelid tracker could not start (${e.message}). The check-in continues with voice only.`); if (faceReady) { faceReady(); faceReady = null; } });
+      // The pulse reads its skin zones on every frame the face tracker reports (pushFaceFrame)
+      if ($('usePulse').checked) startPulseTracked($('v'), (p) => { $('bpmLive').textContent = p.bpm != null ? `${p.bpm} bpm` : (p.progress < 1 ? 'pulse: measuring' : 'pulse: —'); }, { crew: 'CM-2' });
+      startFace($('v'), onFace, { crew: 'CM-2', onFrame: pushFaceFrame }).catch((e) => { stageMsg(`The eyelid tracker could not start (${e.message}). The check-in continues with voice only.`); if (faceReady) { faceReady(); faceReady = null; } });
     } catch (e) { cam = null; stageMsg('The camera is not available. The check-in continues with voice only.'); }
   }
   await ready;
@@ -362,6 +362,8 @@ $('start').onclick = async () => {
 $('finish').onclick = () => {
   if (!running) return;
   running = false; clearInterval(tick); clearTimeout(cap); stopMeter();
+  const sum = pulseSummary(); live.pulse = sum ? sum.observation : null;   // one value for the check-in: the median of the seconds with a trusted pulse
+  $('bpmLive').textContent = '';
   stopPulse(); stopFace();
   if (cam) { cam.getTracks().forEach(t => t.stop()); cam = null; $('v').srcObject = null; }
   $('roi').style.display = 'none'; $('eye').firstElementChild.style.width = '0';
