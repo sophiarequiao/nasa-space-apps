@@ -325,7 +325,7 @@ export function computeBaseline(observations, crew, phase = 'preflight') {
   return out;
 }
 
-// Accepts { mean, sd }, { pre_mean, pre_sd } and the Spanish { media, desv } / { pre_media, pre_dt } (Miguel's file)
+// Accepts { mean, sd }, { pre_mean, pre_sd } and the Spanish { media, desv } / { pre_media, pre_dt } (the team's data file)
 function normalizeBaseline(b) {
   if (!b) return null;
   return { mean: b.mean ?? b.pre_mean ?? b.media ?? b.pre_media, sd: b.sd ?? b.pre_sd ?? b.desv ?? b.pre_dt };

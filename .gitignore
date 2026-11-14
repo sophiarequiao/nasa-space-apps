@@ -9,7 +9,7 @@ __pycache__/
 *.pyc
 .venv/
 
-# Node (por si Sophia D. usa Vite)
+# Node (por si la app usa Vite)
 node_modules/
 dist/
 
