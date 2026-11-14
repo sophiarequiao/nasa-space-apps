@@ -95,8 +95,11 @@ const summary = pulseSummary();          // { bpm, seconds, observation } or nul
 stopPulse(); stopFace();
 ```
 
-- How it works: two skin zones (face and forehead) follow the face on every frame; POS over short overlapping windows; a value is shown only when it persists (three clear estimates that agree, spread over 4 s or more).
-- Real test (one person, laptop camera at 20 fps, 3 minutes, no reference device): a value in 67 % of the seconds while talking and 44 % with small movements, always 79-91 bpm and consistent with the still minute (82-85 bpm). The previous method showed 18 % and 22 %. In replayed 30 s check-ins while talking, about half gave a value and none gave a wrong one.
-- 150 simulated noise-only streams: a value appeared in none or one of them.
-- Limits: tuned on one person and one recording; not validated against a pulse oximeter; it stays silent rather than guess, so some check-ins have no pulse. Estimated, never a clinical measurement.
+- How it works: two skin zones (face and forehead) follow the face on every frame; POS over short overlapping windows; a candidate at the same rate as the face's own movement is discarded; a value is shown only when it persists and changes smoothly (three clear estimates in a row over 4 s or more start a track, and later values must continue it).
+- Real tests (one person, laptop camera, 3 minutes each, no reference device):
+  - At rest: a value in 82 % of the seconds while talking and 51 % with small movements, always 79-91 bpm and consistent with the still minute (82-85 bpm). The previous method showed 18 % and 22 %.
+  - Right after exercise: it followed the recovery, 139 bpm falling to 104 in 45 s and to about 94 after three minutes (a value in 78 % of the still seconds, 40 % talking, 27 % moving).
+  - No shown value was more than 12 bpm away from the trend of its recording.
+- 150 simulated noise-only streams: no value shown. A simulated head movement that tints the skin zone shows a false 54 bpm without the motion check and nothing with it.
+- Limits: tuned on one person and two recordings; not validated against a pulse oximeter; it stays silent rather than guess, so some check-ins have no pulse. Estimated, never a clinical measurement.
 - `tools/record_rppg.html` records raw data (numbers only) and `node tools/eval_rppg.mjs file.csv` replays it.

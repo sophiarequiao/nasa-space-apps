@@ -18,10 +18,15 @@
 // The person must stay still: slow motion or light changes are detected and the value is hidden.
 // TRACKED MODE (startPulseTracked + pushFaceFrame, with face.js): the mode to use when the person talks or moves a little.
 //   Two skin zones (face and forehead) follow the face on every frame; POS is computed over short overlapping windows
-//   (Wang et al. 2017); the zones are added; a value is shown only when it persists (see createPulseGate).
-//   Real test, one person, laptop camera at 20 fps, 3 minutes without a reference device: the old method showed a value
-//   in 18 % of the seconds while talking and 22 % with small movements; the tracked mode in 70 % and 44 %, always
-//   82-89 bpm, consistent with the still minute (82-85 bpm). The thresholds were tuned on that same recording.
+//   (Wang et al. 2017); the zones are added; a candidate at the same rate as the face's own movement is discarded;
+//   a value is shown only when it persists and changes smoothly (see createPulseGate).
+//   Real tests, one person, laptop camera, no reference device, 3 minutes each (still, talking, small movements):
+//   1) at rest: the old method showed a value in 18 % of the seconds while talking and 22 % with small movements; the
+//      tracked mode in 82 % and 51 %, always 79-91 bpm, consistent with the still minute (82-85 bpm);
+//   2) right after exercise: it followed the recovery, 139 bpm falling to 104 in 45 s and to 94 after three minutes,
+//      with a value in 78 % of the still seconds, 40 % talking and 27 % moving.
+//   No shown value was more than 12 bpm away from the trend of its recording. 150 simulated noise-only streams: no value.
+//   The thresholds were tuned on these two recordings.
 //   pulseSummary() gives one value for a whole session (e.g. a 30 s check-in): the median of the shown seconds.
 // Thresholds marked ASSUMPTION are the team's, to be tuned with the validation against a pulse oximeter.
 // Privacy: the image never leaves the browser and is not stored; only the mean colour of the zone is computed.
@@ -222,11 +227,14 @@ const MAX_GAP_MS = 400;                // a longer hole between frames means the
 const BAND_LO = 0.6, BAND_HI = 4.0;    // band used to scale each zone before adding them
 const SHARE_CLEAR = 0.38;              // share of the heart-band power within ±5 bpm of the peak that counts as a clear peak (ASSUMPTION: tuned on one
                                        // person; pure noise reaches it in about 1.5 % of the windows)
+const MOTION_SHARE = 0.28;             // if the face itself moves this much at the candidate rate, the candidate is motion, not pulse (ASSUMPTION)
 const SHARE_ANCHORED = 0.22;           // lower bar for a value that agrees with the recent clear values
-const ANCHOR_TOL = 6, ANCHOR_HOLD_S = 20;
+const TRACK_TOL = 4, TRACK_RATE = 1.5;  // an estimate continues the track if it is within 4 bpm + 1.5 bpm per second since the last accepted one
+const ANCHOR_HOLD_S = 20;
 
-/** Pure core of the tracked mode. t_ms: frame times; zones: [{ r, g, b }, ...] mean colour of each zone per frame. */
-export function estimatePulseZones(t_ms, zones, { window_s = T_WINDOW_S } = {}) {
+/** Pure core of the tracked mode. t_ms: frame times; zones: [{ r, g, b }, ...] mean colour of each zone per frame;
+ *  options.motion: { cx, cy, bw, bh } position and size of the face box per frame (optional, used to reject motion). */
+export function estimatePulseZones(t_ms, zones, { window_s = T_WINDOW_S, motion = null, motionLimit = MOTION_SHARE } = {}) {
   const none = (extra) => ({ bpm_raw: null, share: 0, quality: 0, reason: null, progress: 0, fps: 0, light: null, ...extra });
   const n0 = t_ms.length;
   if (n0 < 10 || !zones.length) return none({});
@@ -278,7 +286,26 @@ export function estimatePulseZones(t_ms, zones, { window_s = T_WINDOW_S } = {}) 
   if (!isLocalMax) return none({ ...base, progress: 1, reason: 'motion' });   // the strongest component is at the edge: slow motion or light change
   let peak = 0; for (let q = Math.max(q0, kMax - 10); q <= Math.min(q1, kMax + 10); q++) peak += P[q];
   const share = total > 0 ? peak / total : 0;
-  return { bpm_raw: (BAND_LO + kMax * df) * 60, share: Math.round(share * 1000) / 1000,
+
+  // 4) Is the face moving at that same rate? motion: the position and size of the face box per frame (cx, cy, bw, bh).
+  //    For each of them, the share of its own heart-band power that sits within ±4 bpm of the pulse candidate.
+  let motion_share = 0;
+  if (motion) {
+    for (const key of ['cx', 'cy', 'bw', 'bh']) {
+      if (!motion[key]) continue;
+      const mv = at(motion[key]), mm = mean(mv); let tot = 0, near = 0;
+      for (let k = 0; k < N; k++) mv[k] = (mv[k] - mm) * hann[k];
+      for (let q = q0; q <= q1; q++) {
+        const w = 2 * Math.PI * (BAND_LO + q * df) / FS; let a = 0, b = 0;
+        for (let k = 0; k < N; k++) { a += mv[k] * Math.cos(w * k); b -= mv[k] * Math.sin(w * k); }
+        const pw = a * a + b * b; tot += pw; if (Math.abs(q - kMax) <= 8) near += pw;
+      }
+      if (tot > 0 && near / tot > motion_share) motion_share = near / tot;
+    }
+    motion_share = Math.round(motion_share * 1000) / 1000;
+    if (motion_share >= motionLimit) return none({ ...base, progress: 1, reason: 'motion', motion_share, bpm_motion: (BAND_LO + kMax * df) * 60 });
+  }
+  return { bpm_raw: (BAND_LO + kMax * df) * 60, share: Math.round(share * 1000) / 1000, motion_share,
     quality: Math.round(Math.max(0, Math.min(1, (share - 0.15) / (0.50 - 0.15))) * 100) / 100, reason: null, ...base, progress: 1 };
 }
 
@@ -301,31 +328,40 @@ function posOverlapAdd(R, G, B, l) {
 }
 
 /** Decides which estimates are shown. update(time_s, estimate) -> { bpm, basis, reason }.
- *  A pulse persists and noise does not, so nothing is shown until there is an ANCHOR: at least 3 clear estimates
- *  (peak share >= 0.38) that agree within ±6 bpm and are spread over 4 s or more, inside the last 20 s.
- *  Then an estimate is shown when it is within ±6 bpm of the anchor (the median of those clear values):
- *  'clear' if its own peak is clear, 'anchored' if the peak is weaker (share >= 0.22) but agrees with the anchor.
- *  The number shown is the median of the values accepted in the last 3.5 s.
- *  With these numbers, 150 simulated noise-only streams of 40 s showed a value in none or one of them. */
-export function createPulseGate({ clear = SHARE_CLEAR, anchored = SHARE_ANCHORED, tol = ANCHOR_TOL, hold_s = ANCHOR_HOLD_S, tolAnchor = 6, minClear = 3, minSpan_s = 4 } = {}) {
-  let hist = [], accepted = [], lastT = null;
+ *  A pulse persists and changes smoothly; noise and motion do not. So:
+ *  - Nothing is shown until there is a TRACK: at least 3 clear estimates (peak share >= 0.38) in a row that follow each
+ *    other smoothly (each within 4 bpm + 1.5 bpm per second of the previous one) and span 4 s or more.
+ *  - Then an estimate is shown when it continues the track: 'clear' if its own peak is clear, 'anchored' if the peak is
+ *    weaker (share >= 0.22) but still continues it. The track follows a pulse that rises or falls (after exercise).
+ *  - A clear estimate far from the track has to build its own track the same way before it replaces the old one.
+ *  - Without a clear estimate for 20 s the track is dropped.
+ *  The number shown is the median of the values accepted in the last 3.5 s. */
+export function createPulseGate({ clear = SHARE_CLEAR, anchored = SHARE_ANCHORED, hold_s = ANCHOR_HOLD_S, tol = TRACK_TOL, rate = TRACK_RATE, maxDev = 12, minClear = 3, minSpan_s = 4 } = {}) {
+  let track = null, cands = [], accepted = [], lastT = null;
   const med = (v) => { const o = v.slice().sort((a, b) => a - b); return o.length % 2 ? o[(o.length - 1) / 2] : (o[o.length / 2 - 1] + o[o.length / 2]) / 2; };
+  const near = (bpm, ref, dt) => Math.abs(bpm - ref) <= Math.min(maxDev, tol + rate * Math.max(0, dt));
   return {
     update(t_s, est) {
-      if (lastT != null && t_s - lastT > 3) { hist = []; accepted = []; }      // estimates stopped for a while: start again
+      if (lastT != null && t_s - lastT > 3) { track = null; cands = []; accepted = []; }      // estimates stopped for a while: start again
       lastT = t_s;
-      hist = hist.filter(h => t_s - h.t <= hold_s); accepted = accepted.filter(a => t_s - a.t <= 3.5);
+      if (track && t_s - track.tClear > hold_s) track = null;
+      accepted = accepted.filter(a => t_s - a.t <= 3.5);
       if (est.bpm_raw == null) return { bpm: null, basis: null, reason: est.reason || 'gathering_data' };
-      hist.push({ t: t_s, bpm: est.bpm_raw, share: est.share });
-      const cl = hist.filter(h => h.share >= clear);
-      if (cl.length < minClear) return { bpm: null, basis: null, reason: 'weak_signal' };
-      const anchor = med(cl.map(h => h.bpm)), support = cl.filter(h => Math.abs(h.bpm - anchor) <= tolAnchor);
-      if (support.length < minClear || support[support.length - 1].t - support[0].t < minSpan_s) return { bpm: null, basis: null, reason: 'unstable' };
-      if (est.share < anchored || Math.abs(est.bpm_raw - anchor) > tol) return { bpm: null, basis: null, reason: est.share < anchored ? 'weak_signal' : 'unstable' };
-      accepted.push({ t: t_s, bpm: est.bpm_raw });
-      return { bpm: Math.round(med(accepted.map(a => a.bpm))), basis: est.share >= clear ? 'clear' : 'anchored', reason: null };
+      const bpm = est.bpm_raw, isClear = est.share >= clear;
+      let basis = null;
+      if (track && est.share >= anchored && near(bpm, track.bpm, t_s - track.t)) {
+        basis = isClear ? 'clear' : 'anchored';
+        track = { bpm, t: t_s, tClear: isClear ? t_s : track.tClear }; cands = [];
+      } else if (isClear) {
+        const last = cands[cands.length - 1];
+        cands = last && t_s - last.t <= 3 && near(bpm, last.bpm, t_s - last.t) ? [...cands, { t: t_s, bpm }] : [{ t: t_s, bpm }];
+        if (cands.length >= minClear && t_s - cands[0].t >= minSpan_s) { track = { bpm, t: t_s, tClear: t_s }; cands = []; accepted = []; basis = 'clear'; }
+      }
+      if (!basis) return { bpm: null, basis: null, reason: isClear ? 'unstable' : 'weak_signal' };
+      accepted.push({ t: t_s, bpm });
+      return { bpm: Math.round(med(accepted.map(a => a.bpm))), basis, reason: null };
     },
-    reset() { hist = []; accepted = []; lastT = null; },
+    reset() { track = null; cands = []; accepted = []; lastT = null; },
   };
 }
 
@@ -335,13 +371,13 @@ let TS = null;
 export function startPulseTracked(videoEl, onResult, options = {}) {
   stopPulse();
   const s = TS = { video: videoEl, cb: onResult, op: { crew: 'CM-1', ...options }, active: true, t: [],
-    z: { face: { r: [], g: [], b: [] }, forehead: { r: [], g: [], b: [] } }, gate: createPulseGate(), shown: [],
+    z: { face: { r: [], g: [], b: [] }, forehead: { r: [], g: [], b: [] } }, m: { cx: [], cy: [], bw: [], bh: [] }, gate: createPulseGate(), shown: [],
     canvas: document.createElement('canvas'), timer: null };
   s.canvas.width = 16; s.canvas.height = 12;
   s.ctx = s.canvas.getContext('2d', { willReadFrequently: true });
   s.timer = setInterval(() => {
     if (!s.active) return;
-    const est = estimatePulseZones(s.t, [s.z.face, s.z.forehead]);
+    const est = estimatePulseZones(s.t, [s.z.face, s.z.forehead], { motion: s.m });
     const g = s.gate.update(performance.now() / 1000, est);
     if (g.bpm != null) s.shown.push(g.bpm);
     const quality = g.bpm == null ? est.quality : (g.basis === 'clear' ? Math.max(0.6, est.quality) : 0.5);
@@ -372,8 +408,12 @@ export function pushFaceFrame(f) {
     s.z[name].r.push(r / n); s.z[name].g.push(g / n); s.z[name].b.push(b / n);
   }
   s.t.push(f.t);
+  s.m.cx.push((f.box.x0 + f.box.x1) / 2); s.m.cy.push((f.box.y0 + f.box.y1) / 2); s.m.bw.push(bw); s.m.bh.push(bh);
   const limit = f.t - (T_WINDOW_S + 2) * 1000;
-  while (s.t.length && s.t[0] < limit) { s.t.shift(); for (const name of ['face', 'forehead']) { s.z[name].r.shift(); s.z[name].g.shift(); s.z[name].b.shift(); } }
+  while (s.t.length && s.t[0] < limit) {
+    s.t.shift(); for (const name of ['face', 'forehead']) { s.z[name].r.shift(); s.z[name].g.shift(); s.z[name].b.shift(); }
+    for (const k of ['cx', 'cy', 'bw', 'bh']) s.m[k].shift();
+  }
 }
 
 /** One value for the whole session so far (e.g. a 30 s check-in): the median of the shown values.
