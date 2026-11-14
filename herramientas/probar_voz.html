@@ -11,7 +11,7 @@
 <h1>Prueba de voz.js</h1>
 <p>Graba un mensaje de 20-30 s como si hablaras con la Tierra, o carga un archivo. El audio no sale del navegador.</p>
 <button id="grabar">● Grabar</button><button id="parar" disabled>■ Parar</button>
-<input id="archivo" type="file" accept="audio/*">
+<input id="archivo" type="file" accept="audio/*"> <a id="descargar" style="display:none">⬇ Descargar grabación</a>
 <p id="estado">Listo.</p>
 
 <h3>Media personal (línea base)</h3>
@@ -64,10 +64,16 @@ async function analizar(blob) {
 }
 
 $('grabar').onclick = async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: false } });
   rec = new MediaRecorder(stream); trozos = [];
   rec.ondataavailable = (e) => trozos.push(e.data);
-  rec.onstop = () => { stream.getTracks().forEach(t => t.stop()); analizar(new Blob(trozos, { type: rec.mimeType })); };
+  rec.onstop = () => {
+    stream.getTracks().forEach(t => t.stop());
+    const blob = new Blob(trozos, { type: rec.mimeType });
+    const a = $('descargar'); a.href = URL.createObjectURL(blob);
+    a.download = 'voz_' + new Date().toISOString().slice(11, 19).replace(/:/g, '') + '.webm'; a.style.display = 'inline';
+    analizar(blob);
+  };
   rec.start(); $('estado').textContent = '● Grabando… (máx. 60 s)';
   $('grabar').disabled = true; $('parar').disabled = false;
   setTimeout(() => rec && rec.state === 'recording' && $('parar').click(), 60000);

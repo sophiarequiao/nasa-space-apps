@@ -44,9 +44,8 @@ export function analizarMuestras(x, fs, mediaPersonal = {}, opciones = {}) {
   const fecha = opciones.fecha || new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
   const dur = x.length / fs;
 
-  // 1) Quitar la componente continua
-  let m = 0; for (let i = 0; i < x.length; i++) m += x[i]; m /= x.length || 1;
-  const s = new Float32Array(x.length); for (let i = 0; i < x.length; i++) s[i] = x[i] - m;
+  // 1) Filtro paso banda 100 Hz - 4 kHz (quita zumbidos y ventiladores; conserva la voz)
+  const s = biquad(biquad(Float32Array.from(x), fs, 'pasoalto', 100), fs, 'pasobajo', 4000);
 
   // 2) Energía por trama (dB) y suavizado de 50 ms
   const paso = Math.round(PASO_S * fs), win = Math.round(VENTANA_S * fs);
@@ -59,11 +58,24 @@ export function analizarMuestras(x, fs, mediaPersonal = {}, opciones = {}) {
   }
   const dbs = mediaMovil(db, 5);
 
-  // 3) Umbral de silencio adaptativo con percentiles (ruido = p10, voz = p95)
+  // 3) Detección de voz: energía > ruido + 3 dB Y tono detectado (YIN); huecos < 150 ms se rellenan
   const p10 = percentil(dbs, 0.10), p95 = percentil(dbs, 0.95);
   const rango = p95 - p10;
-  const umbral = p10 + Math.max(6, 0.35 * rango);             // HIPÓTESIS
-  const voz = Array.from(dbs, v => v > umbral);
+  const umbral = p10 + Math.max(3, 0.2 * rango);              // HIPÓTESIS
+  const candidata = Array.from(dbs, v => v > umbral);
+  const tauMin = Math.floor(fs / F0_MAX), tauMax = Math.ceil(fs / F0_MIN);
+  const wYin = Math.round(0.025 * fs);
+  const f0Trama = new Float32Array(nT).fill(NaN);
+  for (let t = 0; t < nT; t += 2) {                            // YIN cada 20 ms
+    if (!candidata[t]) continue;
+    const o = t * paso;
+    if (o + wYin + tauMax + 2 >= s.length) break;
+    const f = yin(s, o, wYin, fs, tauMin, tauMax);
+    if (f) { f0Trama[t] = f; if (t + 1 < nT) f0Trama[t + 1] = f; }
+  }
+  const sonora = (t) => !Number.isNaN(f0Trama[t]);
+  let voz = candidata.map((c, t) => c && (sonora(t) || (t > 1 && sonora(t - 2)) || (t + 2 < nT && sonora(t + 2))));
+  voz = cerrarHuecos(voz, Math.round(0.15 / PASO_S));          // consonantes sordas cortas
   const primero = voz.indexOf(true), ultimo = voz.lastIndexOf(true);
   if (primero < 0 || nT === 0) return vacio(tripulante, fecha, dur, 'No se detecta voz en la grabación.');
 
@@ -78,18 +90,7 @@ export function analizarMuestras(x, fs, mediaPersonal = {}, opciones = {}) {
   const tPausas = pausas.reduce((a, b) => a + b, 0);
   const tHabla = Math.max(durMensaje - tPausas, 1e-3);
 
-  // 5) F0 con YIN cada 20 ms en las tramas con voz
-  const tauMin = Math.floor(fs / F0_MAX), tauMax = Math.ceil(fs / F0_MIN);
-  const wYin = Math.round(0.025 * fs);
-  const f0Trama = new Float32Array(nT).fill(NaN);
-  for (let t = primero; t <= ultimo; t += 2) {
-    if (!voz[t]) continue;
-    const o = t * paso;
-    if (o + wYin + tauMax >= s.length) break;
-    const f = yin(s, o, wYin, fs, tauMin, tauMax);
-    if (f) { f0Trama[t] = f; if (t + 1 < nT) f0Trama[t + 1] = f; }
-  }
-  // Quitar saltos de octava: fuera de [mediana/1,8, mediana×1,8]
+  // 5) Tono: quitar saltos de octava: fuera de [mediana/1,8, mediana×1,8]
   const f0Bruto = Array.from(f0Trama).filter(v => !Number.isNaN(v));
   const med = mediana(f0Bruto);
   const f0 = f0Bruto.filter(v => v > med / 1.8 && v < med * 1.8);
@@ -112,7 +113,7 @@ export function analizarMuestras(x, fs, mediaPersonal = {}, opciones = {}) {
   }
 
   // 7) Calidad (0-1): relación señal/ruido, duración y fracción sonora — HIPÓTESIS
-  const qSnr = limitar((rango - 10) / 20);      // 10 dB -> 0 ; 30 dB -> 1
+  const qSnr = limitar((rango - 6) / 14);       // 6 dB -> 0 ; 20 dB -> 1 (HIPÓTESIS)
   const qDur = limitar(durMensaje / 10);        // >= 10 s de mensaje -> 1
   const calidad = r2(qSnr * qDur);
   const calidadF0 = r2(calidad * limitar(fracSonora / 0.3));
@@ -205,6 +206,30 @@ function yin(x, o, W, fs, tauMin, tauMax) {
 }
 
 // --- utilidades ---------------------------------------------------------------
+// Filtro biquad de 2.º orden (Butterworth, Q = 0,707), fórmulas del «Audio EQ Cookbook» (R. Bristow-Johnson)
+function biquad(x, fs, tipo, fc) {
+  const w = 2 * Math.PI * fc / fs, cw = Math.cos(w), al = Math.sin(w) / (2 * Math.SQRT1_2);
+  let b0, b1, b2;
+  if (tipo === 'pasoalto') { b0 = (1 + cw) / 2; b1 = -(1 + cw); b2 = (1 + cw) / 2; }
+  else { b0 = (1 - cw) / 2; b1 = 1 - cw; b2 = (1 - cw) / 2; }
+  const a0 = 1 + al, a1 = -2 * cw, a2 = 1 - al;
+  const y = new Float32Array(x.length);
+  let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  for (let i = 0; i < x.length; i++) {
+    const v = (b0 * x[i] + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
+    x2 = x1; x1 = x[i]; y2 = y1; y1 = v; y[i] = v;
+  }
+  return y;
+}
+// Rellena con «voz» los huecos de silencio más cortos que n tramas entre dos tramas de voz
+function cerrarHuecos(v, n) {
+  const out = v.slice(); let ini = -1;
+  for (let t = 0; t < v.length; t++) {
+    if (!v[t] && ini < 0) ini = t;
+    if (v[t] && ini >= 0) { if (ini > 0 && t - ini < n) for (let k = ini; k < t; k++) out[k] = true; ini = -1; }
+  }
+  return out;
+}
 function mediaMovil(v, k) {
   const out = new Float32Array(v.length), h = Math.floor(k / 2);
   for (let i = 0; i < v.length; i++) {

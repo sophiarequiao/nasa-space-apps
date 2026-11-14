@@ -5,10 +5,10 @@
 import { analizarMuestras } from '../src/sensores/voz.js';
 
 const FS = 16000;
-function sintetica({ silabasPorSeg = 5, f0 = 120, pausa = 0.6, bloques = 8, silabasBloque = 10, semilla = 1 }) {
+function sintetica({ silabasPorSeg = 5, f0 = 120, pausa = 0.6, bloques = 8, silabasBloque = 10, semilla = 1, ruidoDb = -45 }) {
   let r = semilla; const rnd = () => ((r = (r * 16807) % 2147483647) / 2147483647);
   const out = []; const T = 1 / silabasPorSeg, L = 0.15;
-  const ruido = () => (rnd() - 0.5) * 2 * 10 ** (-45 / 20);
+  const ruido = () => (rnd() - 0.5) * 2 * 10 ** (ruidoDb / 20);
   for (let i = 0; i < Math.round(0.5 * FS); i++) out.push(ruido());          // silencio inicial
   for (let b = 0; b < bloques; b++) {
     for (let k = 0; k < silabasBloque; k++) {
@@ -30,6 +30,7 @@ const media = { velocidad_habla: { media: 4.4, desv: 0.2 }, pausas: { media: 0.2
 const casos = [
   ['Normal: 5 síl/s, 120 Hz, 7 pausas de 0,6 s', {}],
   ['Lento: 3,5 síl/s, 200 Hz', { silabasPorSeg: 3.5, f0: 200 }],
+  ['Ruidoso (como la sede): 5 síl/s, 120 Hz, ruido a -20 dB', { ruidoDb: -20 }],
 ];
 for (const [nombre, p] of casos) {
   const t0 = performance.now();
