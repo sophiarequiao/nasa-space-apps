@@ -138,13 +138,13 @@
         <div id="stageMsg">The camera is off. It watches the eyelids only; no image is stored or sent.</div>
         <div id="eye" title="Eye openness"><i></i></div>
       </div>
-      <p class="prompt">Say how you slept, how you feel and what is planned today. About 30 seconds, looking at the camera.</p>
+      <p class="prompt">Say how you slept, how you feel and what is planned today. Keep talking for the full 30 seconds, looking at the camera.</p>
       <div class="row">
         <button id="start" class="primary">Start check-in</button>
-        <button id="finish" disabled>Finish check-in</button>
+        <button id="finish" disabled>Finish now</button>
         <label><input id="useCam" type="checkbox" checked> Use the camera</label>
       </div>
-      <div class="row"><span id="timer">0:00</span><div class="meter" title="Microphone level"><i id="lvl"></i></div></div>
+      <div class="row"><span id="timer">0:30</span><div class="meter" title="Microphone level"><i id="lvl"></i></div></div>
       <p id="status" class="fine" aria-live="polite">The audio and the video never leave this device. Only the numbers are kept.</p>
       <div class="row"><button id="vowel">Add a voice check: say “aaaa”</button></div>
       <p class="fine">One breath, one steady note, as long as is comfortable. It measures breath support and voice steadiness.</p>
@@ -257,7 +257,7 @@ function render() {
     title = 'Heads-up, something changed';
     msg = n === 1 ? `One signal moved well away from your baseline: ${top}.` : `${n} signals moved away from your baseline. The biggest changes: ${top}${n > 3 ? `, and ${n - 3} more below` : ''}.`;
   }
-  else if (ew.level === 'green') { title = 'Within your baseline'; msg = ew.message; }
+  else if (ew.level === 'green') { title = 'Within your baseline'; msg = ew.flagged.length ? ew.message : `All ${ew.usable} signals are inside your usual range.`; }
   else { title = 'Not enough to compare yet';
     msg = mode === 'live' && nBase < 2 ? `Save ${2 - nBase} more normal check-in${nBase === 1 ? '' : 's'} to build your baseline. Until then the values are shown without a verdict.` : ew.message; }
   $('readout').className = 'readout ' + (obs.length ? ew.level : 'silent');
@@ -273,7 +273,8 @@ function render() {
       const cls = low ? 'low' : z == null ? 'none' : flagged.has(o.signal) ? 'flag' : '';
       const st = low ? 'low quality' : z == null ? 'no baseline yet' : flagged.has(o.signal) ? (z > 0 ? 'higher' : 'lower') : 'as usual';
       const left = z == null ? 50 : (Math.max(-4, Math.min(4, z)) + 4) / 8 * 100;
-      html += `<div class="sig ${cls}"><span>${SIG[o.signal].n}</span><span class="val">${o.value}<small>${o.unit || ''}</small></span>` +
+      const pct = o.signal === 'pause_fraction', shown = pct ? Math.round(o.value * 100) : o.value, unit = pct ? '%' : (UNIT[o.signal] ?? o.unit ?? '');
+      html += `<div class="sig ${cls}"><span>${SIG[o.signal].n}</span><span class="val">${shown}<small>${unit}</small></span>` +
         `<span class="track"><span class="band"></span><span class="dot" style="left:${left}%"></span></span><span class="st">${st}</span></div>`;
     }
   }
@@ -293,12 +294,14 @@ for (const b of document.querySelectorAll('.seg button')) b.onclick = () => {
 };
 
 // ---------- Live check-in: microphone + camera at the same time ----------
-let running = false, mic = null, cam = null, rec = null, chunks = [], tick = null, cap = null, actx = null, raf = null, pulseOn = false;
+const TARGET_S = 30;   // length of a check-in: the eyelids need at least 20 s, and 30 s of speech gives steadier voice numbers
+let running = false, mic = null, cam = null, rec = null, chunks = [], tick = null, cap = null, actx = null, raf = null, pulseOn = false, faceReady = null;
 const status = (t) => { $('status').textContent = t; };
 const stageMsg = (t) => { $('stageMsg').textContent = t; };
 
 function onFace(r) {
   if (!running) return;
+  if (r.state !== 'loading' && faceReady) { faceReady(); faceReady = null; }   // the tracker is running: the countdown can start
   stageMsg(r.state === 'loading' ? 'Loading the face model…' : r.state === 'no_face' ? 'No face in view. Look at the camera.' :
     r.state === 'measuring' ? `Watching the eyelids, ${Math.round(r.window_s)} of 20 s` : 'Watching the eyelids');
   const box = $('roi').style;
@@ -322,27 +325,33 @@ function meter(stream) {
   } catch { /* the level bar is optional */ }
 }
 function stopMeter() { cancelAnimationFrame(raf); if (actx) { actx.close(); actx = null; } $('lvl').style.width = '0'; }
-const clock = (t0) => { const s = Math.floor((performance.now() - t0) / 1000); $('timer').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+const clock = (t0) => { const s = Math.max(0, TARGET_S - Math.floor((performance.now() - t0) / 1000)); $('timer').textContent = `0:${String(s).padStart(2, '0')}`; };
 
 $('start').onclick = async () => {
   live.voice = []; live.vowel = []; live.face = []; live.pulse = null; pulseOn = false; $('sendNote').textContent = ''; render();
   try { mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: false } }); }
   catch (e) { status(`The microphone is not available (${e.message}). Allow it in the browser and start again.`); return; }
-  running = true; $('start').disabled = true; $('finish').disabled = false; $('vowel').disabled = true; $('saveBase').disabled = true;
+  running = true; rec = null; $('start').disabled = true; $('finish').disabled = false; $('vowel').disabled = true; $('saveBase').disabled = true;
+  $('timer').textContent = `0:${TARGET_S}`;
+  // The camera starts first, so the eyelids are watched for the whole message. Recording waits for it (10 s at most).
+  let ready = Promise.resolve();
   if ($('useCam').checked) {
     try {
       cam = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } }, audio: false });
-      $('v').srcObject = cam; await $('v').play(); stageMsg('Loading the face model…');
-      startFace($('v'), onFace, { crew: 'CM-2' }).catch((e) => stageMsg(`The eyelid tracker could not start (${e.message}). The check-in continues with voice only.`));
+      $('v').srcObject = cam; await $('v').play(); stageMsg('Loading the face model…'); status('Getting the camera ready. Wait for the countdown before you speak.');
+      ready = new Promise((res) => { faceReady = res; setTimeout(res, 10000); });
+      startFace($('v'), onFace, { crew: 'CM-2' }).catch((e) => { stageMsg(`The eyelid tracker could not start (${e.message}). The check-in continues with voice only.`); if (faceReady) { faceReady(); faceReady = null; } });
     } catch (e) { cam = null; stageMsg('The camera is not available. The check-in continues with voice only.'); }
   }
+  await ready;
+  if (!running) return;   // cancelled while the camera was getting ready
   rec = new MediaRecorder(mic); chunks = [];
   rec.ondataavailable = (e) => chunks.push(e.data);
   rec.onstop = recorded;
   rec.start(); meter(mic);
-  const t0 = performance.now(); clock(t0); tick = setInterval(() => clock(t0), 500);
-  cap = setTimeout(() => running && $('finish').click(), 90000);
-  status('Recording. Speak normally, then press “Finish check-in”.');
+  const t0 = performance.now(); clock(t0); tick = setInterval(() => clock(t0), 250);
+  cap = setTimeout(() => running && $('finish').click(), TARGET_S * 1000);
+  status(`Recording. Speak for ${TARGET_S} seconds, looking at the camera. It stops by itself.`);
 };
 
 $('finish').onclick = () => {
@@ -352,8 +361,9 @@ $('finish').onclick = () => {
   if (cam) { cam.getTracks().forEach(t => t.stop()); cam = null; $('v').srcObject = null; }
   $('roi').style.display = 'none'; $('eye').firstElementChild.style.width = '0';
   stageMsg(live.face.length ? 'Camera off. Eyelid values kept.' : 'Camera off. The eyelids need at least 20 s in view to give a value.');
-  $('finish').disabled = true; status('Analysing the message…');
-  if (rec && rec.state !== 'inactive') rec.stop();
+  $('finish').disabled = true; faceReady = null;
+  if (rec && rec.state !== 'inactive') { status('Analysing the message…'); rec.stop(); }
+  else { if (mic) mic.getTracks().forEach(t => t.stop()); $('start').disabled = false; $('vowel').disabled = false; $('timer').textContent = `0:${TARGET_S}`; status('Check-in cancelled before recording started.'); }
 };
 
 async function recorded() {
