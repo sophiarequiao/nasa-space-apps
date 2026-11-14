@@ -72,14 +72,15 @@ function marsRateKbps(owlt_s, share) {
 }
 
 /**
- * @param {{profile:string, dateISO?:string, condition:string|{t_crit_min:number,name?:string,packet_kB?:number}}} args
+ * @param {{profile:string, dateISO?:string, condition:string|{t_crit_min:number,name?:string,packet_kB?:number}, custom?:{owlt_s?:number,hasLink?:boolean,wait_s?:number}}} args
+ *        `custom` is only used with profile 'custom' (any mission: you set the one-way light time)
  * @returns {{A:number, whoDecides:'EARTH'|'SHARED'|'CREW', explanation:string}} plus detail fields
  */
-export function computeAuthority({ profile, dateISO, condition }) {
+export function computeAuthority({ profile, dateISO, condition, custom }) {
   const p = getProfile(profile);
   const card = getCard(condition);
   const S = ASSUMPTIONS;
-  const link = getLink(dateISO || new Date().toISOString(), p.link);
+  const link = getLink(dateISO || new Date().toISOString(), p.link, custom);
 
   // Breakdown of Earth's response time (minutes)
   const kB = card.packet_kB ?? (card.packet || []).reduce((a, x) => a + (x.size_kB_estimate || 0), 0);
@@ -102,7 +103,7 @@ export function computeAuthority({ profile, dateISO, condition }) {
   // One readable sentence: "Kidney stone: Earth answers in 37 min and there is a 4 h margin; Earth leads..."
   const name = card.name || card.id || 'This condition';
   const tE = fmtMin(earthResponse), tC = fmtMin(card.t_crit_min);
-  const REASON = { solar_conjunction: 'solar conjunction', earth_below_horizon: 'Earth is below the horizon' };
+  const REASON = { solar_conjunction: 'solar conjunction', earth_below_horizon: 'Earth is below the horizon', outage: 'communications outage' };
   let explanation;
   if (!link.hasLink) {
     explanation = `${name}: no link to Earth for ${fmtMin(wait)} (${REASON[link.noLinkReason] || link.noLinkReason}) and action is needed within ${tC}; ` +

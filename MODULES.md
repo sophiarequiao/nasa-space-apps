@@ -27,7 +27,8 @@ computeAuthority({ profile: 'mars_surface', dateISO: '2026-11-15T16:30:00Z', con
 ```
 
 - Link profiles: `iss`, `moon`, `moon_relay`, `moon_south_pole`, `mars`, `mars_transit`, `mars_surface`.
-- Mission profiles: `iss`, `lunar_orbit`, `moon_relay`, `moon_south_pole`, `mars_transit`, `mars_surface` (aliases `moon`, `mars`).
+- Mission profiles: `iss`, `lunar_orbit`, `moon_relay`, `moon_south_pole`, `mars_transit`, `mars_surface` (aliases `moon`, `mars`), and `custom`.
+- Any other mission: `computeAuthority({ profile: 'custom', condition, custom: { owlt_s: 240 } })` — you set the one-way light time (and optionally `hasLink: false, wait_s`).
 - `condition` is a card id (`renal_colic`, `suspected_sepsis`, `eye_chemical_burn`…) or an object `{ t_crit_min, name?, packet_kB? }`.
 
 ## Observation format (voice)
@@ -37,8 +38,8 @@ computeAuthority({ profile: 'mars_surface', dateISO: '2026-11-15T16:30:00Z', con
   "source": "microphone", "method": "estimated", "quality": 1, "region": "brain" }
 ```
 
-Signals: `speech_rate` (syllables/s), `pause_fraction` (fraction), `message_duration` (s), plus four new ones:
-`pause_count` (count), `mean_pause_duration` (s), `f0_mean` (Hz), `f0_variability` (st).
+Signals: `speech_rate` (syllables/s), `pause_fraction` (fraction), `message_duration` (s), plus five new ones:
+`pause_count` (count), `mean_pause_duration` (s), `f0_mean` (Hz), `f0_variability` (st), `voice_harmonicity` (dB).
 `baseline[signal]` accepts `{ mean, sd }`, `{ pre_mean, pre_sd }`, `{ media, desv }` or `{ pre_media, pre_dt }`.
 
 ## Tests
@@ -58,7 +59,7 @@ Browser test pages (serve the repo root, e.g. `python -m http.server 8000`): `to
 
 - **Authority:** 15 min ground response and thresholds 0.25 / 1 are team assumptions (`data/mission_profiles.json`). All `t_crit_min` values are still `TO_VALIDATE`.
 - **Link:** ISS 0.25 s (assumption), Moon 1.28 s (mean distance), lunar south pole outage calendar is simulated, Mars from JPL approximate ephemerides (to be checked against JPL Horizons).
-- **Voice:** validated on 10 real recordings of one speaker. It detects speech slower than the personal baseline (−14 % in the test) but under-counts syllables in fast speech. In a noisy room it reports low quality instead of a value.
+- **Voice:** validated on 10 real recordings of one speaker. It detects speech slower than the personal baseline (−14 % in the test) but under-counts syllables in fast speech. In a noisy room it reports low quality instead of a value. `voice_harmonicity` (hoarse or breathy voice) has not been checked against a hoarse voice, and it also drops with room noise (6.7 dB in a noisy room vs 10 dB in a quiet one for the same speaker): compare only recordings made in similar conditions.
 - **Camera pulse (optional):** no face tracking; the person places their face in a fixed zone and must stay still for 15-20 s. Checked against a manual count on one person (74 bpm both) and a post-exercise recovery curve; not yet validated against a pulse oximeter. With motion it hides the value (`reason: 'motion'`) instead of showing a wrong one. `heart_rate` observations use `source: 'camera_rppg'`, `method: 'estimated'`.
 - `tools/generate_earth_mars_link.py` and its CSV keep their original Spanish comments and column names.
 

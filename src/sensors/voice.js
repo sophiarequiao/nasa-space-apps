@@ -8,6 +8,8 @@
 //   pause_fraction        fraction of silence (stretches > 250 ms) inside the message
 //   pause_count, mean_pause_duration, message_duration
 //   f0_mean (Hz) and f0_variability (semitones) with YIN (de Cheveigné & Kawahara 2002), range 70-400 Hz
+//   voice_harmonicity (dB): mean harmonics-to-noise ratio of the voiced frames, from YIN's aperiodicity.
+//     Lower = hoarser or breathier voice. It also drops with room noise: compare only similar recording conditions.
 // Privacy: the audio never leaves the browser; only the measures are returned.
 // Known limit (validated with 10 real recordings): detects speech slower than the personal baseline,
 //   but under-counts syllables in fast speech. Thresholds marked ASSUMPTION were tuned on one speaker.
@@ -24,7 +26,7 @@ const YIN_THRESHOLD = 0.30;     // 0.15 missed ~3/4 of the voiced frames in a no
 const YIN_THRESHOLD_F0 = 0.15;  // only reliable frames are used for the mean pitch (keeps background voices out)
 const VOICE_NEAR_FRAMES = 4;    // a frame is speech if there is pitch within ±40 ms (ASSUMPTION)
 const MAX_GAP_S = 0.20;         // gaps < 200 ms (unvoiced consonants) count as speech (ASSUMPTION)
-export const VOICE_SIGNALS = ['speech_rate', 'pause_fraction', 'pause_count', 'mean_pause_duration', 'f0_mean', 'f0_variability', 'message_duration'];
+export const VOICE_SIGNALS = ['speech_rate', 'pause_fraction', 'pause_count', 'mean_pause_duration', 'f0_mean', 'f0_variability', 'voice_harmonicity', 'message_duration'];
 
 // ---------------------------------------------------------------------------
 // Browser entry point: Blob (MediaRecorder or file) -> mono 16 kHz samples
@@ -72,6 +74,7 @@ export function analyzeSamples(x, fs, baseline = {}, options = {}) {
   const wYin = Math.round(0.025 * fs);
   const f0Frame = new Float32Array(nF).fill(NaN);     // pitch used to detect speech (permissive threshold)
   const f0Reliable = new Float32Array(nF).fill(NaN);  // pitch used to measure (strict threshold)
+  const hnrFrame = [];                                // harmonics-to-noise ratio of each voiced frame (dB)
   for (let t = 0; t < nF; t += 2) {                            // YIN every 20 ms
     if (!candidate[t]) continue;
     const o = t * hop;
@@ -80,6 +83,8 @@ export function analyzeSamples(x, fs, baseline = {}, options = {}) {
     if (r) {
       f0Frame[t] = r.f; if (t + 1 < nF) f0Frame[t + 1] = r.f;
       if (r.d < YIN_THRESHOLD_F0) f0Reliable[t] = r.f;
+      // YIN's d' is the aperiodic share of the frame power: HNR = 10·log10((1 − d') / d'), capped at 30 dB
+      hnrFrame.push(Math.min(30, 10 * Math.log10((1 - r.d) / Math.max(r.d, 1e-3))));
     }
   }
   const voiced = (t) => !Number.isNaN(f0Frame[t]);
@@ -135,6 +140,7 @@ export function analyzeSamples(x, fs, baseline = {}, options = {}) {
   const f0Mean = f0.length ? f0.reduce((a, b) => a + b, 0) / f0.length : null;
   const st = f0.map(v => 12 * Math.log2(v / med));
   const f0Var = st.length > 1 ? stdev(st) : null;
+  const hnr = hnrFrame.length >= 20 ? hnrFrame.reduce((a, b) => a + b, 0) / hnrFrame.length : null;
   const measures = [
     ['speech_rate', r2(syllables / speechTime), 'syllables/s', 'estimated', quality],
     ['pause_fraction', r2(pauseTime / messageDur), 'fraction', 'estimated', quality],
@@ -142,6 +148,7 @@ export function analyzeSamples(x, fs, baseline = {}, options = {}) {
     ['mean_pause_duration', pauses.length ? r2(pauseTime / pauses.length) : 0, 's', 'estimated', quality],
     ['f0_mean', f0Mean == null ? null : Math.round(f0Mean * 10) / 10, 'Hz', 'estimated', qualityF0],
     ['f0_variability', f0Var == null ? null : r2(f0Var), 'st', 'estimated', qualityF0],
+    ['voice_harmonicity', hnr == null ? null : Math.round(hnr * 10) / 10, 'dB', 'estimated', qualityF0],
     ['message_duration', Math.round(messageDur), 's', 'clinical', 1],
   ];
   const extra = {};
@@ -185,7 +192,7 @@ function normalizeBaseline(b) {
 function summarize(obs, baseline, info) {
   const z = {}, changes = [];
   const NAMES = { speech_rate: 'Speech rate', pause_fraction: 'Silence in the message', pause_count: 'Number of pauses',
-    mean_pause_duration: 'Mean pause duration', f0_mean: 'Mean pitch', f0_variability: 'Pitch variation', message_duration: 'Message duration' };
+    mean_pause_duration: 'Mean pause duration', f0_mean: 'Mean pitch', f0_variability: 'Pitch variation', voice_harmonicity: 'Voice harmonicity', message_duration: 'Message duration' };
   for (const o of obs) {
     const b = normalizeBaseline(baseline && baseline[o.signal]);
     if (!b || !b.sd) { z[o.signal] = null; continue; }

@@ -98,6 +98,21 @@
       "resupply": "No",
       "gravity_g": 0.38,
       "usual_decider": "The crew"
+    },
+    {
+      "id": "custom",
+      "name": "Custom mission (any distance)",
+      "name_es": "Misión a medida (cualquier distancia)",
+      "link": "custom",
+      "medical_rate_kbps": null,
+      "delay": "Set by the user: any one-way light time",
+      "outages": "Set by the user",
+      "evacuation": "Depends on the mission",
+      "evacuation_max_h": null,
+      "evacuation_source": "—",
+      "resupply": "Depends on the mission",
+      "gravity_g": null,
+      "usual_decider": "Depends on the distance"
     }
   ]
 }

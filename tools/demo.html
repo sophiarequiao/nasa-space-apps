@@ -62,6 +62,11 @@
     <label>Date (UTC) <input id="date" type="datetime-local"></label>
     <button id="send" class="main">Send summary to Earth</button>
   </div>
+  <div id="customBox" class="row" style="display:none;margin-top:.6rem">
+    <label style="flex:1;min-width:260px">Distance from Earth <input id="dist" type="range" min="0" max="1500" step="1" value="240" style="width:100%"></label>
+    <span id="distLbl" style="min-width:230px"></span>
+    <label><input id="outage" type="checkbox"> communications outage (24 h)</label>
+  </div>
   <svg viewBox="0 0 800 120" role="img" aria-label="Message travelling to Earth">
     <line id="path" x1="90" y1="60" x2="710" y2="60" stroke="#2a3558" stroke-width="3" stroke-dasharray="2 9" stroke-linecap="round"/>
     <circle cx="70" cy="60" r="16" fill="#c9cfdf"/><text id="crewLbl" x="70" y="104" text-anchor="middle" fill="#93a0c4" font-size="13">Crew</text>
@@ -111,9 +116,9 @@ await loadAuthorityData();
 
 // ---------- 1 · Voice -------------------------------------------------------------
 const DEFAULT_BASELINE = { speech_rate: { mean: 4.4, sd: 0.2 }, pause_fraction: { mean: 0.22, sd: 0.03 } };   // synthetic crew data
-const CAL_SIGNALS = ['speech_rate', 'pause_fraction', 'mean_pause_duration', 'f0_mean'];
-const FLOOR = { speech_rate: 0.05, pause_fraction: 0.12, mean_pause_duration: 0.15, f0_mean: 0.05 };          // minimum sd as a share of the mean (ASSUMPTION)
-const LABEL = { speech_rate: 'Speech rate', pause_fraction: 'Silence', pause_count: 'Pauses', mean_pause_duration: 'Mean pause', f0_mean: 'Pitch', f0_variability: 'Pitch variation', message_duration: 'Duration' };
+const CAL_SIGNALS = ['speech_rate', 'pause_fraction', 'mean_pause_duration', 'f0_mean', 'voice_harmonicity'];
+const FLOOR = { speech_rate: 0.05, pause_fraction: 0.12, mean_pause_duration: 0.15, f0_mean: 0.05, voice_harmonicity: 0.10 };          // minimum sd as a share of the mean (ASSUMPTION)
+const LABEL = { speech_rate: 'Speech rate', pause_fraction: 'Silence', pause_count: 'Pauses', mean_pause_duration: 'Mean pause', f0_mean: 'Pitch', f0_variability: 'Pitch variation', voice_harmonicity: 'Voice clarity', message_duration: 'Duration' };
 let lastVoice = null, pulseObs = null, rec = null, chunks = [], cap = null;
 
 const readCal = () => { try { return JSON.parse(localStorage.getItem('demo_baseline') || '[]'); } catch { return []; } };
@@ -181,13 +186,17 @@ $('cond').innerHTML = listConditions().map(c => `<option value="${c.id}">${c.nam
 $('cond').value = 'renal_colic';
 $('date').value = new Date().toISOString().slice(0, 16);
 const dateISO = () => $('date').value + ':00Z';
-const REASON = { solar_conjunction: 'solar conjunction: Mars is behind the Sun', earth_below_horizon: 'Earth is below the horizon and there is no relay satellite' };
+// Custom mission: the slider sets the one-way light time (0-25 min), i.e. any distance out to beyond Mars
+const custom = () => ($('profile').value === 'custom' ? { owlt_s: +$('dist').value, hasLink: !$('outage').checked, wait_s: 86400 } : undefined);
+const REASON = { solar_conjunction: 'solar conjunction: Mars is behind the Sun', earth_below_horizon: 'Earth is below the horizon and there is no relay satellite', outage: 'communications outage' };
 let anim = null;
 
 function showLink() {
   cancelAnimationFrame(anim); $('photon').setAttribute('opacity', 0); $('clock').textContent = ''; $('speed').textContent = '';
   try {
-    const p = getProfile($('profile').value), link = getLink(dateISO(), p.link);
+    const p = getProfile($('profile').value), link = getLink(dateISO(), p.link, custom());
+    $('customBox').style.display = p.id === 'custom' ? 'flex' : 'none';
+    if (p.id === 'custom') $('distLbl').textContent = `${(+$('dist').value * 0.299792458).toFixed(1)} million km · light takes ${formatDuration(+$('dist').value)}`;
     $('crewLbl').textContent = p.name.split(',')[0].replace(/\s*\(.*\)/, '');
     $('path').setAttribute('stroke', link.hasLink ? '#4c8dff' : '#e5484d');
     $('arrive').textContent = link.hasLink ? `A message reaches Earth in ${formatDuration(link.owlt_s)}` : `No link to Earth for ${formatDuration(link.waitUntilLink_s)}`;
@@ -225,7 +234,7 @@ const hm = (min) => min < 1 ? `${Math.round(min * 60)} s` : min < 120 ? `${Math.
 
 function showAuthority() {
   try {
-    const r = computeAuthority({ profile: $('profile').value, dateISO: dateISO(), condition: $('cond').value });
+    const r = computeAuthority({ profile: $('profile').value, dateISO: dateISO(), condition: $('cond').value, custom: custom() });
     $('needle').style.transform = `rotate(${-90 + 180 * frac(r.A)}deg)`;
     $('who').className = r.whoDecides; $('who').textContent = r.whoDecides;
     $('exp').textContent = r.explanation;
@@ -236,7 +245,7 @@ function showAuthority() {
   } catch (e) { $('who').className = ''; $('who').textContent = '—'; $('exp').textContent = e.message; }
 }
 const refresh = () => { showLink(); showAuthority(); };
-for (const id of ['profile', 'date', 'cond']) $(id).oninput = refresh;
+for (const id of ['profile', 'date', 'cond', 'dist', 'outage']) $(id).oninput = refresh;
 refresh();
 </script>
 </main></body></html>
