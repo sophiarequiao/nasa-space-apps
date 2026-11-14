@@ -103,3 +103,21 @@ stopPulse(); stopFace();
 - 150 simulated noise-only streams: no value shown. A simulated head movement that tints the skin zone shows a false 54 bpm without the motion check and nothing with it.
 - Limits: tuned on one person and two recordings; not validated against a pulse oximeter; it stays silent rather than guess, so some check-ins have no pulse. Estimated, never a clinical measurement.
 - `tools/record_rppg.html` records raw data (numbers only) and `node tools/eval_rppg.mjs file.csv` replays it.
+
+## More from the face (`src/sensors/face.js`)
+
+- Two more passive signals in `observations` once the window is long enough:
+  - `blink_duration` (ms): mean length of the blinks. Longer than the person's usual goes with drowsiness. Coarse at 20-30 fps.
+  - `facial_expressiveness` (0-100): how much the brows, cheeks and mouth corners move while the person talks. Less than usual is a behavioural signal, nothing more. The jaw and the lips are left out, so speech itself does not count.
+- `onFrame` now also gives `shapes`: the 52 expression scores of MediaPipe for that frame.
+- Guided check of the two sides of the face:
+
+```js
+import { symmetryIndex } from './src/sensors/face.js';
+// collect f.shapes from onFrame while the person holds a wide smile for 4 s, then:
+const r = symmetryIndex(frames, 'mouthSmileLeft', 'mouthSmileRight');   // { left, right, asymmetry (0-100 %), weaker } or null
+```
+
+  The demo stores it as `smile_asymmetry` and `brow_asymmetry` (%), compared with the person's own baseline. A new difference changes the early-warning suggestion to "call the crew medical officer and open the suspected-stroke checklist".
+- Status: logic tested with synthetic scores only. Not yet tried on a real face, no clinical validation, and the wording of the suggestion must be confirmed by the health lead. "Left" and "right" are the person's own sides as MediaPipe names them (TO CHECK on a real face).
+- Tried and dropped: breathing rate from the movement of the face box. On two real recordings the candidates did not agree with each other, so it is not offered.

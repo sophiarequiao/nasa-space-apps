@@ -6,11 +6,17 @@
 //     perclos (%)               share of time with the eyes closed (the classic drowsiness measure, Wierwille 1994 / Dinges 1998)
 //     long_closures (count)     eyelid closures longer than 500 ms: slow "droops", not blinks
 //     yawns (count)             mouth wide open for more than 1 s
+//     blink_duration (ms)       mean length of the blinks (longer blinks go with drowsiness); coarse at 20-30 fps
+//     facial_expressiveness     how much the brows, cheeks and mouth corners move while the person talks (0-100 scale).
+//                               Less movement than the person's usual is a behavioural signal, nothing more.
 //     roi: face zone (forehead and cheeks) as fractions of the frame; pass it to rppg.js with setPulseRoi()
 //     observations: app-format objects once the window is long enough
 //   options: { crew, window_s (default 60), modelUrl, wasmUrl, onFrame }
-//     onFrame({ t, found, box, blink, jaw, roi }): called for every video frame with the face box (fractions of the frame).
+//     onFrame({ t, found, box, blink, jaw, roi, shapes }): called for every video frame with the face box (fractions of the
+//     frame) and the 52 expression scores of MediaPipe (shapes.mouthSmileLeft, ...).
 //     It lets rppg.js follow the face frame by frame and skip the eyes and the mouth.
+// Also here: symmetryIndex(frames, left, right), for a GUIDED check ("smile", "raise your eyebrows") that compares the two
+//   sides of the face. It is an aid for the crew medical officer, to be read against the person's own pre-flight check.
 // What it is: a screening signal of eyelid behaviour compared with the person's own baseline. It is NOT a diagnosis
 // and cannot tell pain, illness or stress from a face. All thresholds are ASSUMPTIONS to be tuned with real data.
 // Real test (one person, 3 min): blink rate 8/min at rest and 19/min blinking on purpose; PERCLOS 1 % at rest and
@@ -74,13 +80,50 @@ export function createEyeTracker() {
   };
 }
 
+// Expression scores that are not driven by speech itself (the jaw and the lips are left out)
+const EXPRESSIVE = ['browDownLeft', 'browDownRight', 'browInnerUp', 'browOuterUpLeft', 'browOuterUpRight', 'cheekSquintLeft', 'cheekSquintRight',
+  'mouthSmileLeft', 'mouthSmileRight', 'mouthFrownLeft', 'mouthFrownRight', 'noseSneerLeft', 'noseSneerRight', 'eyeWideLeft', 'eyeWideRight'];
+
+/** Pure: how much the face moves. push(t_ms, shapes) per frame; stats(now_ms, window_s) -> { expressiveness } (0-100).
+ *  expressiveness = 100 × the mean, over the scores above, of how much each one varies in time (standard deviation). */
+export function createExpressionTracker() {
+  const rows = [];
+  return {
+    push(t, shapes) { rows.push({ t, v: EXPRESSIVE.map(k => shapes[k] || 0) }); const old = t - 5 * 60 * 1000; while (rows.length && rows[0].t < old) rows.shift(); },
+    stats(now, window_s = WINDOW_S) {
+      const w = rows.filter(r => r.t >= now - window_s * 1000);
+      if (w.length < 60) return { expressiveness: null };          // a few seconds of frames at least
+      let sum = 0;
+      for (let k = 0; k < EXPRESSIVE.length; k++) {
+        let m = 0; for (const r of w) m += r.v[k]; m /= w.length;
+        let v = 0; for (const r of w) v += (r.v[k] - m) ** 2;
+        sum += Math.sqrt(v / w.length);
+      }
+      return { expressiveness: Math.round(sum / EXPRESSIVE.length * 1000) / 10 };
+    },
+  };
+}
+
+/** Pure: compares the two sides of the face during a held expression.
+ *  frames: the `shapes` of each video frame while the person holds it; left/right: names of the two scores to compare
+ *  (e.g. 'mouthSmileLeft', 'mouthSmileRight'). Uses the stronger half of the frames in which the movement is present.
+ *  -> { left, right, asymmetry (0-100 %), weaker: 'left'|'right' } or null if the movement was not seen. */
+export function symmetryIndex(frames, left, right, minEffort = 0.25) {
+  const act = frames.filter(f => f && ((f[left] || 0) + (f[right] || 0)) / 2 >= minEffort);
+  if (act.length < 5) return null;
+  act.sort((a, b) => (b[left] + b[right]) - (a[left] + a[right]));
+  const top = act.slice(0, Math.max(5, Math.ceil(act.length / 2)));
+  const L = top.reduce((a, f) => a + f[left], 0) / top.length, R = top.reduce((a, f) => a + f[right], 0) / top.length;
+  return { left: Math.round(L * 100) / 100, right: Math.round(R * 100) / 100, asymmetry: Math.round(100 * Math.abs(L - R) / Math.max(L, R)), weaker: L < R ? 'left' : 'right' };
+}
+
 // ---------------------------------------------------------------------------
 let S = null;
 
 export async function startFace(videoEl, onResult, options = {}) {
   stopFace();
   const s = S = { video: videoEl, cb: onResult, op: { crew: 'CM-1', window_s: WINDOW_S, ...options }, active: true, ownStream: false,
-    tracker: createEyeTracker(), lastSeen: 0, roi: null, timer: null, frameId: null, lm: null, lastVideoTime: -1 };
+    tracker: createEyeTracker(), expr: createExpressionTracker(), lastSeen: 0, roi: null, timer: null, frameId: null, lm: null, lastVideoTime: -1 };
   s.cb({ state: 'loading' });
 
   const base = new URL('../../vendor/mediapipe/', import.meta.url);
@@ -116,8 +159,10 @@ export async function startFace(videoEl, onResult, options = {}) {
       let res = null; try { res = s.lm.detectForVideo(v, now); } catch { /* skip this frame */ }
       if (res && res.faceLandmarks && res.faceLandmarks.length && res.faceBlendshapes && res.faceBlendshapes.length) {
         const cats = res.faceBlendshapes[0].categories;
+        const shapes = {}; for (const c of cats) shapes[c.categoryName] = c.score;
         const blink = (score(cats, 'eyeBlinkLeft') + score(cats, 'eyeBlinkRight')) / 2;
         s.tracker.push(now, blink, score(cats, 'jawOpen'));
+        s.expr.push(now, shapes);
         s.lastSeen = now;
         // Face box from the landmarks -> zone with forehead and cheeks (no mouth), smoothed so it does not jitter
         let x0 = 1, y0 = 1, x1 = 0, y1 = 0;
@@ -125,7 +170,7 @@ export async function startFace(videoEl, onResult, options = {}) {
         const bw = x1 - x0, bh = y1 - y0;
         const r = { x: x0 + 0.2 * bw, y: y0 + 0.08 * bh, w: 0.6 * bw, h: 0.6 * bh };
         s.roi = s.roi ? { x: s.roi.x + 0.2 * (r.x - s.roi.x), y: s.roi.y + 0.2 * (r.y - s.roi.y), w: s.roi.w + 0.2 * (r.w - s.roi.w), h: s.roi.h + 0.2 * (r.h - s.roi.h) } : r;
-        if (s.op.onFrame) s.op.onFrame({ t: now, found: true, box: { x0, y0, x1, y1 }, blink, jaw: score(cats, 'jawOpen'), roi: s.roi });
+        if (s.op.onFrame) s.op.onFrame({ t: now, found: true, box: { x0, y0, x1, y1 }, blink, jaw: score(cats, 'jawOpen'), roi: s.roi, shapes });
       } else if (s.op.onFrame) s.op.onFrame({ t: now, found: false });
     }
     s.frameId = s.video.requestVideoFrameCallback ? s.video.requestVideoFrameCallback(frame) : requestAnimationFrame(frame);
@@ -141,10 +186,11 @@ export async function startFace(videoEl, onResult, options = {}) {
     const quality = Math.round(Math.max(0, Math.min(1, (st.fps - 10) / 10)) * Math.min(1, st.window_s / s.op.window_s) * 100) / 100;   // needs >= 20 fps and a full window
     const time = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
     const obs = (signal, value, unit) => ({ crew: s.op.crew, signal, value, unit, time, source: 'camera_face', method: 'estimated', quality, region: 'brain' });
-    s.cb({
-      state: ready ? 'ok' : 'measuring', ...st, quality, roi: s.roi,
-      observations: ready ? [obs('blink_rate', st.blink_rate, 'blinks/min'), obs('perclos', st.perclos, '%'), obs('long_eye_closures', st.long_closures, 'count'), obs('yawns', st.yawns, 'count')] : [],
-    });
+    const ex = s.expr.stats(now, s.op.window_s);
+    const list = ready ? [obs('blink_rate', st.blink_rate, 'blinks/min'), obs('perclos', st.perclos, '%'), obs('long_eye_closures', st.long_closures, 'count'), obs('yawns', st.yawns, 'count')] : [];
+    if (ready && st.mean_blink_ms != null && st.blink_rate >= 3) list.push(obs('blink_duration', st.mean_blink_ms, 'ms'));
+    if (ready && ex.expressiveness != null) list.push(obs('facial_expressiveness', ex.expressiveness, 'of 100'));
+    s.cb({ state: ready ? 'ok' : 'measuring', ...st, expressiveness: ex.expressiveness, quality, roi: s.roi, observations: list });
   }, 1000);
 }
 

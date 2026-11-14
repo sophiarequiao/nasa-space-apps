@@ -9,6 +9,7 @@
 //   - it is flagged when it is 2 sd or more from the baseline in the direction that matters (e.g. slower speech, more
 //     eyelid closure; pulse and pitch count in both directions);
 //   - amber when 2 or more signals are flagged, or one is 3 sd or more away;
+//   - the guided face-symmetry check (smile, eyebrows) counts like any other signal but changes the suggestion;
 //   - never red: these are estimated signals. Amber means "run the standard check", not "something is wrong".
 // It does not diagnose and does not name any condition. Drafted with AI assistance (Claude, Anthropic). MIT licence.
 
@@ -16,14 +17,16 @@
 export const DIRECTION = {
   speech_rate: -1, pause_fraction: +1, mean_pause_duration: +1, f0_variability: -1, f0_mean: 0, voice_harmonicity: -1,
   max_phonation_time: -1, jitter: +1, shimmer: +1, vowel_harmonicity: -1, voice_breaks: +1,
-  blink_rate: 0, perclos: +1, long_eye_closures: +1, yawns: +1,
+  blink_rate: 0, perclos: +1, long_eye_closures: +1, yawns: +1, blink_duration: +1, facial_expressiveness: -1,
+  smile_asymmetry: +1, brow_asymmetry: +1,
   heart_rate: 0,
 };
 const NAME = {
   speech_rate: 'speech rate', pause_fraction: 'silence in the message', mean_pause_duration: 'pause length', f0_variability: 'pitch variation',
   f0_mean: 'voice pitch', voice_harmonicity: 'voice clarity', max_phonation_time: 'breath support', jitter: 'voice roughness', shimmer: 'voice steadiness',
   vowel_harmonicity: 'vowel clarity', voice_breaks: 'voice breaks', blink_rate: 'blink rate', perclos: 'eyelid closure', long_eye_closures: 'slow eyelid closures',
-  yawns: 'yawning', heart_rate: 'heart rate',
+  yawns: 'yawning', heart_rate: 'heart rate', blink_duration: 'blink length', facial_expressiveness: 'facial movement',
+  smile_asymmetry: 'smile symmetry', brow_asymmetry: 'eyebrow symmetry',
 };
 const MIN_QUALITY = 0.4, Z_FLAG = 2, Z_STRONG = 3, MIN_USABLE = 3;
 
@@ -50,6 +53,11 @@ export function earlyWarning(observations, baseline = {}, options = {}) {
     : flagged.length ? `Within your baseline overall. One signal to watch: ${list}.` : 'Within your personal baseline.';
   return {
     level, flagged, usable, message,
-    suggestion: level === 'amber' ? 'Nothing is diagnosed. Run the standard check now: temperature, blood pressure, SpO2 and the daily questionnaire.' : null,
+    // A new difference between the two sides of the face is treated apart: it is the "F" of the public FAST stroke check.
+    // The wording is a team ASSUMPTION to be confirmed by the health lead.
+    suggestion: level !== 'amber' ? null
+      : flagged.some(f => f.signal === 'smile_asymmetry' || f.signal === 'brow_asymmetry')
+        ? 'Nothing is diagnosed. A new difference between the two sides of the face needs the crew medical officer now: repeat the check and open the suspected-stroke checklist.'
+        : 'Nothing is diagnosed. Run the standard check now: temperature, blood pressure, SpO2 and the daily questionnaire.',
   };
 }

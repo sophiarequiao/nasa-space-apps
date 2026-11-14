@@ -150,6 +150,8 @@
       <p id="status" class="fine" aria-live="polite">The audio and the video never leave this device. Only the numbers are kept.</p>
       <div class="row"><button id="vowel">Add a voice check: say “aaaa”</button></div>
       <p class="fine">One breath, one steady note, as long as is comfortable. It measures breath support and voice steadiness.</p>
+      <div class="row"><button id="sym">Check face symmetry, 8 seconds</button></div>
+      <p class="fine">A guided check: smile, then raise your eyebrows. It compares the two sides of your face with your own usual. Experimental; it supports the crew medical officer and diagnoses nothing.</p>
       <div class="row">
         <button id="saveBase" disabled>Save this check-in to my baseline</button>
         <button id="clearBase">Clear my baseline</button>
@@ -170,6 +172,7 @@
     <p id="ewSug" hidden></p>
     <div id="signals"></div>
     <div class="legend" id="legend" hidden><span><i></i>your usual range, 2 standard deviations either side</span><span>● today</span></div>
+    <p id="strokeRow" hidden><button id="strokeBtn">See who decides for a suspected stroke</button></p>
     <div class="row"><button id="send" class="primary" disabled>Send this check-in to Earth</button><span id="sendNote" class="fine" style="margin:0"></span></div>
   </section>
 </div>
@@ -184,7 +187,7 @@
 import { getLink, formatDuration } from '../src/engine/link.js';
 import { computeAuthority, loadAuthorityData, listProfiles, listConditions, getProfile } from '../src/engine/authority.js';
 import { analyzeVoice, analyzeVowel } from '../src/sensors/voice.js';
-import { startFace, stopFace } from '../src/sensors/face.js';
+import { startFace, stopFace, symmetryIndex } from '../src/sensors/face.js';
 import { startPulseTracked, pushFaceFrame, pulseSummary, stopPulse } from '../src/sensors/rppg.js';
 import { earlyWarning } from '../src/engine/earlyWarning.js';
 
@@ -202,9 +205,11 @@ const SIG = {
   voice_breaks: { n: 'Voice breaks', g: 'vowel', abs: 0.5 },
   blink_rate: { n: 'Blink rate', g: 'eyes', floor: 0.25, abs: 2 }, perclos: { n: 'Eyes closed', g: 'eyes', abs: 2 },
   long_eye_closures: { n: 'Slow eyelid closures', g: 'eyes', abs: 0.7 }, yawns: { n: 'Yawns', g: 'eyes', abs: 0.5 },
+  blink_duration: { n: 'Blink length', g: 'eyes', floor: 0.2, abs: 30 }, facial_expressiveness: { n: 'Facial movement', g: 'eyes', floor: 0.2, abs: 0.8 },
+  smile_asymmetry: { n: 'Smile, difference between sides', g: 'sym', abs: 8 }, brow_asymmetry: { n: 'Eyebrows, difference between sides', g: 'sym', abs: 8 },
   heart_rate: { n: 'Pulse', g: 'pulse', floor: 0.07 },
 };
-const GROUPS = { voice: 'Voice message', vowel: 'Voice check, sustained “aaaa”', eyes: 'Eyelids, from the camera', pulse: 'Pulse from the camera, experimental' };
+const GROUPS = { voice: 'Voice message', vowel: 'Voice check, sustained “aaaa”', eyes: 'Eyelids and face, from the camera', pulse: 'Pulse from the camera, experimental', sym: 'Face symmetry, guided check' };
 
 // ---------- Simulated crew member (invented values) ----------
 const SYN_BASE = {
@@ -212,18 +217,20 @@ const SYN_BASE = {
   f0_variability: { mean: 2.4, sd: 0.35 }, voice_harmonicity: { mean: 10.5, sd: 1.0 }, max_phonation_time: { mean: 14, sd: 2 }, jitter: { mean: 0.16, sd: 0.04 },
   shimmer: { mean: 4.8, sd: 1.2 }, vowel_harmonicity: { mean: 15.8, sd: 1.3 }, voice_breaks: { mean: 0, sd: 0.5 }, blink_rate: { mean: 14, sd: 4 },
   perclos: { mean: 3, sd: 2 }, long_eye_closures: { mean: 0, sd: 0.7 }, yawns: { mean: 0, sd: 0.5 }, heart_rate: { mean: 64, sd: 5 },
+  blink_duration: { mean: 190, sd: 35 }, facial_expressiveness: { mean: 6.2, sd: 1.1 },
 };
 const UNIT = { speech_rate: 'syl/s', pause_fraction: '', mean_pause_duration: 's', f0_mean: 'Hz', f0_variability: 'st', voice_harmonicity: 'dB', max_phonation_time: 's',
-  jitter: '%', shimmer: '%', vowel_harmonicity: 'dB', voice_breaks: '', blink_rate: '/min', perclos: '%', long_eye_closures: '', yawns: '', heart_rate: 'bpm' };
-const SRC = { voice: 'microphone', vowel: 'microphone', eyes: 'camera_face', pulse: 'camera_rppg' };
+  jitter: '%', shimmer: '%', vowel_harmonicity: 'dB', voice_breaks: '', blink_rate: '/min', perclos: '%', long_eye_closures: '', yawns: '', heart_rate: 'bpm',
+  blink_duration: 'ms', facial_expressiveness: '', smile_asymmetry: '%', brow_asymmetry: '%' };
+const SRC = { voice: 'microphone', vowel: 'microphone', eyes: 'camera_face', pulse: 'camera_rppg', sym: 'camera_face' };
 const sim = (values) => Object.entries(values).map(([signal, value]) => ({ crew: 'CM-2', signal, value, unit: UNIT[signal], source: SRC[SIG[signal].g], method: 'simulated', quality: 0.9 }));
 const SIM = {
   rested: { text: 'Simulated crew member CM-2 after a normal night, mission day 41.',
     obs: sim({ speech_rate: 4.5, pause_fraction: 0.21, mean_pause_duration: 0.52, f0_mean: 130, f0_variability: 2.5, voice_harmonicity: 10.8, max_phonation_time: 14.6,
-      jitter: 0.15, shimmer: 4.4, vowel_harmonicity: 16.2, voice_breaks: 0, blink_rate: 13, perclos: 2.4, long_eye_closures: 0, yawns: 0, heart_rate: 62 }) },
+      jitter: 0.15, shimmer: 4.4, vowel_harmonicity: 16.2, voice_breaks: 0, blink_rate: 13, perclos: 2.4, long_eye_closures: 0, yawns: 0, blink_duration: 185, facial_expressiveness: 6.5, heart_rate: 62 }) },
   tired: { text: 'Simulated crew member CM-2 after three short nights and a sore throat, mission day 44.',
     obs: sim({ speech_rate: 3.9, pause_fraction: 0.29, mean_pause_duration: 0.74, f0_mean: 124, f0_variability: 1.6, voice_harmonicity: 8.9, max_phonation_time: 9.0,
-      jitter: 0.31, shimmer: 8.1, vowel_harmonicity: 11.2, voice_breaks: 1, blink_rate: 21, perclos: 11, long_eye_closures: 3, yawns: 2, heart_rate: 71 }) },
+      jitter: 0.31, shimmer: 8.1, vowel_harmonicity: 11.2, voice_breaks: 1, blink_rate: 21, perclos: 11, long_eye_closures: 3, yawns: 2, blink_duration: 310, facial_expressiveness: 3.6, heart_rate: 71 }) },
 };
 
 // ---------- Personal baseline of the person at the keyboard, kept in this browser only ----------
@@ -243,9 +250,9 @@ function personalBaseline() {
 
 // ---------- State and read-out ----------
 let mode = 'live';
-const live = { voice: [], vowel: [], face: [], pulse: null };
+const live = { voice: [], vowel: [], face: [], pulse: null, sym: [] };
 const known = (list) => list.filter(o => o.signal in SIG && typeof o.value === 'number');
-const currentObs = () => mode === 'live' ? known([...live.voice, ...live.vowel, ...live.face, ...(live.pulse ? [live.pulse] : [])]) : SIM[mode].obs;
+const currentObs = () => mode === 'live' ? known([...live.voice, ...live.vowel, ...live.face, ...(live.pulse ? [live.pulse] : []), ...live.sym]) : SIM[mode].obs;
 const currentBase = () => mode === 'live' ? personalBaseline() : SYN_BASE;
 let lastWarning = null;
 
@@ -285,6 +292,7 @@ function render() {
   }
   $('signals').innerHTML = html;
   $('legend').hidden = !obs.length;
+  $('strokeRow').hidden = !(mode === 'live' && live.sym.length);
   $('send').disabled = !obs.length;
   $('baseN').textContent = nBase ? `Your baseline holds ${nBase} check-in${nBase > 1 ? 's' : ''}, stored in this browser only. A real baseline needs many days.` : 'No personal baseline yet. Save two or more normal check-ins first.';
 }
@@ -331,10 +339,10 @@ function stopMeter() { cancelAnimationFrame(raf); if (actx) { actx.close(); actx
 const clock = (t0) => { const s = Math.max(0, TARGET_S - Math.floor((performance.now() - t0) / 1000)); $('timer').textContent = `0:${String(s).padStart(2, '0')}`; };
 
 $('start').onclick = async () => {
-  live.voice = []; live.vowel = []; live.face = []; live.pulse = null; pulseOn = false; $('sendNote').textContent = ''; render();
+  live.voice = []; live.vowel = []; live.face = []; live.pulse = null; live.sym = []; pulseOn = false; $('sendNote').textContent = ''; render();
   try { mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: false } }); }
   catch (e) { status(`The microphone is not available (${e.message}). Allow it in the browser and start again.`); return; }
-  running = true; rec = null; $('start').disabled = true; $('finish').disabled = false; $('vowel').disabled = true; $('saveBase').disabled = true;
+  running = true; rec = null; $('start').disabled = true; $('finish').disabled = false; $('vowel').disabled = true; $('sym').disabled = true; $('saveBase').disabled = true;
   $('timer').textContent = `0:${TARGET_S}`;
   // The camera starts first, so the eyelids are watched for the whole message. Recording waits for it (10 s at most).
   let ready = Promise.resolve();
@@ -370,7 +378,7 @@ $('finish').onclick = () => {
   stageMsg(live.face.length ? 'Camera off. Eyelid values kept.' : 'Camera off. The eyelids need at least 20 s in view to give a value.');
   $('finish').disabled = true; faceReady = null;
   if (rec && rec.state !== 'inactive') { status('Analysing the message…'); rec.stop(); }
-  else { if (mic) mic.getTracks().forEach(t => t.stop()); $('start').disabled = false; $('vowel').disabled = false; $('timer').textContent = `0:${TARGET_S}`; status('Check-in cancelled before recording started.'); }
+  else { if (mic) mic.getTracks().forEach(t => t.stop()); $('start').disabled = false; $('vowel').disabled = false; $('sym').disabled = false; $('timer').textContent = `0:${TARGET_S}`; status('Check-in cancelled before recording started.'); }
 };
 
 async function recorded() {
@@ -380,7 +388,7 @@ async function recorded() {
     live.voice = r.observations;
     status(r.summary.quality < 0.4 ? r.summary.text : `Message analysed: ${Math.round(r.summary.message_duration_s ?? r.summary.duration_s)} s of speech, recording quality ${r.summary.quality}.`);
   } catch (e) { status(`The message could not be analysed (${e.message}).`); }
-  $('start').disabled = false; $('vowel').disabled = false;
+  $('start').disabled = false; $('vowel').disabled = false; $('sym').disabled = false;
   render(); $('saveBase').disabled = currentObs().filter(o => (o.quality ?? 1) >= 0.4).length < 3;
 }
 
@@ -393,7 +401,7 @@ $('vowel').onclick = async () => {
   const parts = []; vRec = new MediaRecorder(vMic);
   vRec.ondataavailable = (e) => parts.push(e.data);
   vRec.onstop = async () => {
-    vMic.getTracks().forEach(t => t.stop()); stopMeter(); $('vowel').textContent = 'Add a voice check: say “aaaa”'; $('start').disabled = false;
+    vMic.getTracks().forEach(t => t.stop()); stopMeter(); $('vowel').textContent = 'Add a voice check: say “aaaa”'; $('start').disabled = false; $('sym').disabled = false;
     status('Analysing the vowel…');
     try {
       const r = await analyzeVowel(new Blob(parts, { type: vRec.mimeType }), personalBaseline(), { crew: 'CM-2' });
@@ -402,10 +410,39 @@ $('vowel').onclick = async () => {
     } catch (e) { status(`The vowel could not be analysed (${e.message}).`); }
     render(); $('saveBase').disabled = currentObs().filter(o => (o.quality ?? 1) >= 0.4).length < 3;
   };
-  vRec.start(); meter(vMic); $('vowel').textContent = 'Stop the voice check'; $('start').disabled = true;
+  vRec.start(); meter(vMic); $('vowel').textContent = 'Stop the voice check'; $('start').disabled = true; $('sym').disabled = true;
   status('Recording. Take a breath and hold “aaaa” on one note, 10 to 15 cm from the microphone.');
   vCap = setTimeout(() => vRec.state === 'recording' && vRec.stop(), 30000);
 };
+
+// Guided check: two held expressions, 4 s each; the two sides of the face are compared (symmetryIndex in face.js)
+const wait = (ms) => new Promise(r => setTimeout(r, ms));
+$('sym').onclick = async () => {
+  if (running) return;
+  running = true; $('sym').disabled = true; $('start').disabled = true; $('vowel').disabled = true; $('sendNote').textContent = '';
+  const frames = { smile: [], brow: [] }; let phase = null, seen, stream = null; const first = new Promise(r => { seen = r; });
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } }, audio: false });
+    $('v').srcObject = stream; await $('v').play(); stageMsg('Loading the face model…'); status('Getting the camera ready.');
+    await startFace($('v'), () => {}, { crew: 'CM-2', onFrame: (f) => { if (!f.found) return; seen(); if (phase) frames[phase].push(f.shapes); } });
+    await Promise.race([first, wait(10000)]);
+    for (const [ph, text] of [['smile', 'Smile widely and show your teeth'], ['brow', 'Now raise both eyebrows as high as you can']]) {
+      phase = ph; status(text + '.');
+      for (let k = 4; k > 0; k--) { stageMsg(`${text} (${k})`); await wait(1000); }
+    }
+    phase = null;
+    const sm = symmetryIndex(frames.smile, 'mouthSmileLeft', 'mouthSmileRight'), br = symmetryIndex(frames.brow, 'browOuterUpLeft', 'browOuterUpRight');
+    const time = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+    const ob = (signal, r) => ({ crew: 'CM-2', signal, value: r.asymmetry, unit: '%', time, source: 'camera_face', method: 'estimated', quality: 0.8, region: 'brain' });
+    live.sym = [...(sm ? [ob('smile_asymmetry', sm)] : []), ...(br ? [ob('brow_asymmetry', br)] : [])];
+    const say = (name, r) => r ? `${name}: your left ${r.left}, your right ${r.right}, difference ${r.asymmetry} %.` : `${name}: the movement was not seen, repeat the check.`;
+    status(`${say('Smile', sm)} ${say('Eyebrows', br)}`);
+  } catch (e) { status(`The symmetry check could not run (${e.message}).`); }
+  stopFace(); if (stream) { stream.getTracks().forEach(t => t.stop()); $('v').srcObject = null; }
+  stageMsg('Camera off.'); running = false; $('sym').disabled = false; $('start').disabled = false; $('vowel').disabled = false;
+  render(); $('saveBase').disabled = currentObs().filter(o => (o.quality ?? 1) >= 0.4).length < 3;
+};
+$('strokeBtn').onclick = () => { $('cond').value = 'suspected_stroke'; refresh(); $('far').scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' }); };
 
 $('saveBase').onclick = () => {
   const row = {}; for (const o of currentObs()) if ((o.quality ?? 1) >= 0.4) row[o.signal] = o.value;

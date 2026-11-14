@@ -1,5 +1,5 @@
 // Test the eyelid logic of face.js with SYNTHETIC blink scores:  node tools/test_face.mjs
-import { createEyeTracker } from '../src/sensors/face.js';
+import { createEyeTracker, createExpressionTracker, symmetryIndex } from '../src/sensors/face.js';
 
 // Builds 60 s at 30 fps: eyes open (score 0.05) with the given events {at (s), ms, kind}
 function run(events, fps = 30, seconds = 60) {
@@ -26,6 +26,28 @@ for (const [name, ev, exp, fps] of cases) {
   const ok = Math.abs(s.blink_rate - exp.blink_rate) <= 1 && s.long_closures === exp.long_closures && s.yawns === exp.yawns;
   if (!ok) fail++;
   console.log(`${ok ? 'OK  ' : 'FAIL'} ${name}\n     blink rate ${s.blink_rate}/min (expected ${exp.blink_rate}) · PERCLOS ${s.perclos} % · mean blink ${s.mean_blink_ms} ms · long closures ${s.long_closures} (expected ${exp.long_closures}) · yawns ${s.yawns} (expected ${exp.yawns}) · ${s.fps} fps`);
+}
+
+// Facial movement: an animated face (brows and smile come and go) must read clearly higher than a flat one
+let seed = 5; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+function expr(animated) {
+  const tr = createExpressionTracker();
+  for (let i = 0; i <= 30 * 30; i++) { const t = i * 1000 / 30, s = t / 1000;
+    const brow = animated ? 0.25 + 0.25 * Math.sin(2 * Math.PI * 0.4 * s) : 0.05, smile = animated && s % 8 < 2.5 ? 0.6 : 0.05;
+    tr.push(t, { browInnerUp: brow + 0.02 * rnd(), browOuterUpLeft: brow, browOuterUpRight: brow, mouthSmileLeft: smile, mouthSmileRight: smile, cheekSquintLeft: smile / 2, cheekSquintRight: smile / 2, jawOpen: 0.3 * rnd() });
+  }
+  return tr.stats(30000, 30).expressiveness;
+}
+const flat = expr(false), lively = expr(true);
+const okE = lively > 3 * flat + 1; if (!okE) fail++;
+console.log(`${okE ? 'OK  ' : 'FAIL'} Facial movement: flat face ${flat}, animated face ${lively} (0-100 scale)`);
+
+// Symmetry of a held smile: even smile, one-sided smile, no smile at all
+const hold = (L, R, n = 90) => Array.from({ length: n }, (_, i) => { const k = Math.min(1, i / 20); return { mouthSmileLeft: L * k + 0.02 * rnd(), mouthSmileRight: R * k + 0.02 * rnd() }; });
+const sym = [['Even smile', hold(0.8, 0.76), (r) => r && r.asymmetry <= 10], ['One-sided smile (right side weaker)', hold(0.8, 0.35), (r) => r && r.asymmetry >= 45 && r.weaker === 'right'], ['No smile: nothing to compare', hold(0.05, 0.05), (r) => r === null]];
+for (const [name, frames, check] of sym) {
+  const r = symmetryIndex(frames, 'mouthSmileLeft', 'mouthSmileRight'), ok = check(r); if (!ok) fail++;
+  console.log(`${ok ? 'OK  ' : 'FAIL'} ${name}: ${r ? `left ${r.left}, right ${r.right}, difference ${r.asymmetry} %` : 'movement not seen'}`);
 }
 console.log(fail ? `\n${fail} FAILURES` : '\nAll cases as expected');
 process.exit(fail ? 1 : 0);
