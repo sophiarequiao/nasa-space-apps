@@ -50,6 +50,8 @@ node tools/test_voice.mjs       # synthetic speech with known rate, pauses and p
 node tools/test_rppg.mjs        # synthetic pulse signals: 55, 72, 110 bpm, noise, slow motion, low light
 ```
 
+**End-to-end demo:** `tools/demo.html` chains the modules: voice message → measures against the personal baseline → summary travelling to Earth with the real light time → authority dial per mission and situation.
+
 Browser test pages (serve the repo root, e.g. `python -m http.server 8000`): `tools/test_link.html`, `tools/test_authority.html`, `tools/test_voice.html`, `tools/test_rppg.html`.
 
 ## Known limits and assumptions

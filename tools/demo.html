@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SOSpesAI · end-to-end demo</title>
+<style>
+  :root{--bg:#0b1020;--card:#151c33;--line:#2a3558;--txt:#e8ecf8;--mut:#93a0c4;--green:#2fb36b;--amber:#f0a020;--red:#e5484d;--blue:#4c8dff}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  main{max-width:880px;margin:auto;padding:1.2rem}
+  h1{font-size:1.5rem;margin:.2rem 0} h2{font-size:1.05rem;margin:0 0 .7rem;color:var(--mut);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+  .tag{color:var(--mut);margin:0 0 1rem}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1.1rem;margin:0 0 1rem}
+  button,select,input[type=datetime-local]{font:inherit;color:var(--txt);background:#1e2747;border:1px solid var(--line);border-radius:9px;padding:.5rem .8rem}
+  button{cursor:pointer} button:hover{border-color:var(--blue)} button:disabled{opacity:.45;cursor:default}
+  button.main{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
+  .row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin-top:.8rem}
+  .m{background:#10172c;border:1px solid var(--line);border-radius:11px;padding:.7rem;border-left:4px solid var(--green)}
+  .m.amber{border-left-color:var(--amber)} .m.silent{border-left-color:#8a93a6}
+  .m b{display:block;font-size:1.45rem} .m span{color:var(--mut);font-size:.82rem} .m i{font-style:normal;font-size:.8rem;color:var(--mut)}
+  .note{color:var(--mut);font-size:.85rem;margin:.6rem 0 0}
+  #msg{font-size:1.05rem;margin:.8rem 0 0}
+  #arrive{font-size:1.5rem;font-weight:700;margin:.4rem 0}
+  svg{width:100%;height:auto;display:block}
+  #who{font-size:2.3rem;font-weight:800;margin:.2rem 0;letter-spacing:.03em}
+  .EARTH{color:var(--blue)} .SHARED{color:var(--amber)} .CREW{color:var(--red)}
+  #needle{transition:transform .9s cubic-bezier(.3,1.4,.5,1);transform-origin:160px 160px}
+  .bars div{height:14px;border-radius:7px;margin:.25rem 0 .7rem;transition:width .8s}
+  .bars small{color:var(--mut)}
+  details{margin-top:.8rem} summary{cursor:pointer;color:var(--mut)}
+  video{width:220px;border-radius:10px;transform:scaleX(-1);background:#000}
+  #vbox{position:relative;width:220px} #oval{position:absolute;border:2px solid var(--green);border-radius:40%;left:32%;top:18%;width:36%;height:50%}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem} @media(max-width:640px){.grid2{grid-template-columns:1fr}}
+</style>
+<body><main>
+<h1>SOSpesAI</h1>
+<p class="tag">Know your crew. Know your resources. Know your options. <b>Know your time.</b> — technical demo, synthetic baseline, not a medical device.</p>
+
+<section>
+  <h2>1 · The message is the measurement</h2>
+  <div class="row">
+    <button id="rec" class="main">● Record message</button><button id="stop" disabled>■ Stop</button>
+    <label>or load a recording <input id="file" type="file" accept="audio/*"></label>
+  </div>
+  <p id="msg">Record your daily message to Earth (20-30 s). The audio never leaves this device.</p>
+  <div id="cards" class="cards"></div>
+  <div class="row" style="margin-top:.7rem">
+    <button id="calib" disabled>Use as my baseline</button><button id="calibClear">Reset baseline</button><span id="calibN" class="note" style="margin:0"></span>
+  </div>
+  <p class="note">Each value is compared with this person's own baseline (z-score). Estimated signals never go beyond amber. Low-quality recordings are reported, not scored.</p>
+  <details><summary>Optional: 15 s camera pulse check before recording</summary>
+    <div class="row" style="margin-top:.7rem;align-items:flex-start">
+      <div id="vbox"><video id="v" playsinline muted></video><div id="oval"></div></div>
+      <div><button id="pStart">▶ Start</button> <button id="pStop" disabled>■ Stop</button>
+        <p id="pulse" style="font-size:1.8rem;font-weight:700;margin:.5rem 0">—</p><p id="pInfo" class="note">Face in the oval, front light, stay still.</p></div>
+    </div>
+  </details>
+</section>
+
+<section>
+  <h2>2 · How far is Earth right now?</h2>
+  <div class="row">
+    <label>Mission <select id="profile"></select></label>
+    <label>Date (UTC) <input id="date" type="datetime-local"></label>
+    <button id="send" class="main">Send summary to Earth</button>
+  </div>
+  <svg viewBox="0 0 800 120" role="img" aria-label="Message travelling to Earth">
+    <line id="path" x1="90" y1="60" x2="710" y2="60" stroke="#2a3558" stroke-width="3" stroke-dasharray="2 9" stroke-linecap="round"/>
+    <circle cx="70" cy="60" r="16" fill="#c9cfdf"/><text id="crewLbl" x="70" y="104" text-anchor="middle" fill="#93a0c4" font-size="13">Crew</text>
+    <circle cx="730" cy="60" r="24" fill="#3b82f6"/><path d="M716 52q8-10 18-4t10 12q-8 6-14 2t-14-10z" fill="#34d399" opacity=".85"/>
+    <text x="730" y="108" text-anchor="middle" fill="#93a0c4" font-size="13">Earth</text>
+    <circle id="photon" cx="90" cy="60" r="7" fill="#ffd166" opacity="0"/>
+    <text id="clock" x="400" y="38" text-anchor="middle" fill="#e8ecf8" font-size="20" font-weight="700"></text>
+    <text id="speed" x="400" y="92" text-anchor="middle" fill="#93a0c4" font-size="12"></text>
+  </svg>
+  <p id="arrive"></p>
+  <p id="linkNote" class="note"></p>
+</section>
+
+<section>
+  <h2>3 · Who decides?</h2>
+  <div class="row"><label>Situation <select id="cond"></select></label></div>
+  <div class="grid2" style="margin-top:.6rem">
+    <div>
+      <svg viewBox="0 0 320 185" style="max-width:340px">
+        <path id="zE" fill="none" stroke="#4c8dff" stroke-width="22"/><path id="zS" fill="none" stroke="#f0a020" stroke-width="22"/><path id="zC" fill="none" stroke="#e5484d" stroke-width="22"/>
+        <line id="needle" x1="160" y1="160" x2="160" y2="52" stroke="#e8ecf8" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="160" cy="160" r="8" fill="#e8ecf8"/>
+        <text x="20" y="180" font-size="12" fill="#93a0c4">EARTH</text><text x="137" y="14" font-size="12" fill="#93a0c4">SHARED</text><text x="262" y="180" font-size="12" fill="#93a0c4">CREW</text>
+      </svg>
+      <p id="who"></p>
+    </div>
+    <div>
+      <p id="exp" style="font-size:1.05rem;margin-top:0"></p>
+      <div class="bars">
+        <small id="bEarthL"></small><div id="bEarth" style="background:var(--blue);width:0"></div>
+        <small id="bCritL"></small><div id="bCrit" style="background:var(--red);width:0"></div>
+      </div>
+      <p id="detail" class="note"></p>
+    </div>
+  </div>
+  <p class="note">Authority index A = Earth's response time ÷ time to act. A ≤ 0.25 Earth leads · up to 1 shared · above 1 the crew decides. Thresholds, the 15 min ground response and the times to act are team assumptions still to be validated.</p>
+</section>
+
+<script type="module">
+import { getLink, formatDuration } from '../src/engine/link.js';
+import { computeAuthority, loadAuthorityData, listProfiles, listConditions, getProfile } from '../src/engine/authority.js';
+import { analyzeVoice } from '../src/sensors/voice.js';
+import { startPulse, stopPulse } from '../src/sensors/rppg.js';
+
+const $ = (id) => document.getElementById(id);
+await loadAuthorityData();
+
+// ---------- 1 · Voice -------------------------------------------------------------
+const DEFAULT_BASELINE = { speech_rate: { mean: 4.4, sd: 0.2 }, pause_fraction: { mean: 0.22, sd: 0.03 } };   // synthetic crew data
+const CAL_SIGNALS = ['speech_rate', 'pause_fraction', 'mean_pause_duration', 'f0_mean'];
+const FLOOR = { speech_rate: 0.05, pause_fraction: 0.12, mean_pause_duration: 0.15, f0_mean: 0.05 };          // minimum sd as a share of the mean (ASSUMPTION)
+const LABEL = { speech_rate: 'Speech rate', pause_fraction: 'Silence', pause_count: 'Pauses', mean_pause_duration: 'Mean pause', f0_mean: 'Pitch', f0_variability: 'Pitch variation', message_duration: 'Duration' };
+let lastVoice = null, pulseObs = null, rec = null, chunks = [], cap = null;
+
+const readCal = () => { try { return JSON.parse(localStorage.getItem('demo_baseline') || '[]'); } catch { return []; } };
+const writeCal = (v) => { try { localStorage.setItem('demo_baseline', JSON.stringify(v)); } catch {} };
+function baseline() {
+  const cal = readCal();
+  $('calibN').textContent = cal.length ? `Personal baseline from ${cal.length} message${cal.length > 1 ? 's' : ''}` : 'Using the synthetic crew baseline';
+  if (!cal.length) return DEFAULT_BASELINE;
+  const b = {};
+  for (const s of CAL_SIGNALS) {
+    const v = cal.map(c => c[s]).filter(x => typeof x === 'number'); if (!v.length) continue;
+    const mu = v.reduce((a, x) => a + x, 0) / v.length;
+    const sd = v.length > 1 ? Math.sqrt(v.reduce((a, x) => a + (x - mu) ** 2, 0) / (v.length - 1)) : 0;
+    b[s] = { mean: +mu.toFixed(3), sd: +Math.max(sd, FLOOR[s] * Math.abs(mu), 0.01).toFixed(3) };
+  }
+  return b;
+}
+baseline();
+
+async function analyse(blob) {
+  $('msg').textContent = 'Analysing…';
+  const r = await analyzeVoice(blob, baseline(), { crew: 'CM-2' });
+  lastVoice = r; $('calib').disabled = r.summary.quality < 0.4;
+  $('msg').textContent = r.summary.text;
+  const low = r.summary.quality < 0.4;
+  $('cards').innerHTML = r.observations.map(o => {
+    const z = r.summary.z[o.signal];
+    const cls = low ? 'silent' : (z != null && Math.abs(z) >= 2 ? 'amber' : '');
+    return `<div class="m ${cls}"><span>${LABEL[o.signal] || o.signal}</span><b>${o.value}<i> ${o.unit}</i></b><span>${z == null ? 'no baseline' : 'z = ' + z} · quality ${o.quality}</span></div>`;
+  }).join('');
+}
+$('rec').onclick = async () => {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: false } });
+  rec = new MediaRecorder(stream); chunks = [];
+  rec.ondataavailable = (e) => chunks.push(e.data);
+  rec.onstop = () => { stream.getTracks().forEach(t => t.stop()); analyse(new Blob(chunks, { type: rec.mimeType })); };
+  rec.start(); $('msg').textContent = '● Recording…'; $('rec').disabled = true; $('stop').disabled = false;
+  clearTimeout(cap); cap = setTimeout(() => rec && rec.state === 'recording' && $('stop').click(), 90000);
+};
+$('stop').onclick = () => { clearTimeout(cap); rec.stop(); $('rec').disabled = false; $('stop').disabled = true; };
+$('file').onchange = (e) => e.target.files[0] && analyse(e.target.files[0]);
+$('calib').onclick = () => {
+  const row = {}; for (const o of lastVoice.observations) row[o.signal] = o.value;
+  const cal = readCal(); cal.push(row); writeCal(cal); baseline(); $('calib').disabled = true;
+};
+$('calibClear').onclick = () => { writeCal([]); baseline(); };
+
+// Optional camera pulse
+$('pStart').onclick = async () => {
+  try {
+    await startPulse($('v'), (r) => {
+      $('pulse').textContent = r.bpm != null ? `${r.bpm} bpm` : '—';
+      $('pInfo').textContent = r.state === 'ok' ? `quality ${r.quality} · estimated, not a clinical measurement` : (r.reason || r.state).replace(/_/g, ' ');
+      if (r.observation) pulseObs = r.observation;
+    }, { crew: 'CM-2' });
+    $('pStart').disabled = true; $('pStop').disabled = false;
+  } catch (e) { $('pInfo').textContent = 'Camera not available: ' + e.message; }
+};
+$('pStop').onclick = () => { stopPulse(); $('pStart').disabled = false; $('pStop').disabled = true; };
+
+// ---------- 2 · Link ---------------------------------------------------------------
+$('profile').innerHTML = listProfiles().map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+$('profile').value = 'mars_surface';
+$('cond').innerHTML = listConditions().map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+$('cond').value = 'renal_colic';
+$('date').value = new Date().toISOString().slice(0, 16);
+const dateISO = () => $('date').value + ':00Z';
+const REASON = { solar_conjunction: 'solar conjunction: Mars is behind the Sun', earth_below_horizon: 'Earth is below the horizon and there is no relay satellite' };
+let anim = null;
+
+function showLink() {
+  cancelAnimationFrame(anim); $('photon').setAttribute('opacity', 0); $('clock').textContent = ''; $('speed').textContent = '';
+  try {
+    const p = getProfile($('profile').value), link = getLink(dateISO(), p.link);
+    $('crewLbl').textContent = p.name.split(',')[0].replace(/\s*\(.*\)/, '');
+    $('path').setAttribute('stroke', link.hasLink ? '#4c8dff' : '#e5484d');
+    $('arrive').textContent = link.hasLink ? `A message reaches Earth in ${formatDuration(link.owlt_s)}` : `No link to Earth for ${formatDuration(link.waitUntilLink_s)}`;
+    $('linkNote').textContent = link.hasLink ? `Round trip ${formatDuration(link.rtt_s)} · ${p.outages}` : `Reason: ${REASON[link.noLinkReason] || link.noLinkReason}. The summary is queued and sent when the link is back.`;
+    return link;
+  } catch (e) { $('arrive').textContent = 'Error'; $('linkNote').textContent = e.message; return null; }
+}
+$('send').onclick = () => {
+  const link = showLink(); if (!link) return;
+  // The summary that would be sent: the observations of the message, as compact JSON
+  const packet = JSON.stringify({ crew: 'CM-2', time: dateISO(), observations: [...(lastVoice ? lastVoice.observations : []), ...(pulseObs ? [pulseObs] : [])], note: lastVoice ? lastVoice.summary.text : 'no voice message' });
+  const kB = (new Blob([packet]).size / 1024).toFixed(1);
+  if (!link.hasLink) { $('arrive').textContent = `Summary queued (${kB} kB) · no link for ${formatDuration(link.waitUntilLink_s)}`; return; }
+  // Photon animation: real time up to 3 s, otherwise compressed to 6 s
+  const real = link.owlt_s, shown = real <= 3 ? Math.max(real, 0.5) : 6, factor = real / shown, t0 = performance.now();
+  $('speed').textContent = factor > 1.05 ? `time ×${Math.round(factor)}` : 'real time';
+  $('photon').setAttribute('opacity', 1);
+  const step = (now) => {
+    const k = Math.min(1, (now - t0) / 1000 / shown);
+    $('photon').setAttribute('cx', 90 + k * 620);
+    $('clock').textContent = formatDuration(k * real < 60 ? Math.round(k * real * 100) / 100 : Math.round(k * real));
+    if (k < 1) anim = requestAnimationFrame(step);
+    else { $('arrive').textContent = `Summary delivered (${kB} kB) after ${formatDuration(real)}`; }
+  };
+  anim = requestAnimationFrame(step);
+};
+
+// ---------- 3 · Authority dial -----------------------------------------------------
+const LMIN = -2, LMAX = 2;
+const frac = (A) => (Math.min(LMAX, Math.max(LMIN, Math.log10(Math.max(A, 1e-6)))) - LMIN) / (LMAX - LMIN);   // 0..1 along the dial
+const pt = (f, r) => { const a = Math.PI * (1 - f); return [160 + r * Math.cos(a), 160 - r * Math.sin(a)]; };
+const arc = (A1, A2) => { const [x1, y1] = pt(frac(A1), 120), [x2, y2] = pt(frac(A2), 120); return `M${x1} ${y1} A120 120 0 0 1 ${x2} ${y2}`; };
+$('zE').setAttribute('d', arc(0.01, 0.25)); $('zS').setAttribute('d', arc(0.25, 1)); $('zC').setAttribute('d', arc(1, 100));
+const hm = (min) => min < 1 ? `${Math.round(min * 60)} s` : min < 120 ? `${Math.round(min)} min` : min < 2880 ? `${Math.round(min / 6) / 10} h` : `${Math.round(min / 144) / 10} days`;
+
+function showAuthority() {
+  try {
+    const r = computeAuthority({ profile: $('profile').value, dateISO: dateISO(), condition: $('cond').value });
+    $('needle').style.transform = `rotate(${-90 + 180 * frac(r.A)}deg)`;
+    $('who').className = r.whoDecides; $('who').textContent = r.whoDecides;
+    $('exp').textContent = r.explanation;
+    const max = Math.max(r.earthResponse_min, r.tCrit_min);
+    $('bEarthL').textContent = `Earth's answer: ${hm(r.earthResponse_min)}`; $('bEarth').style.width = `${Math.max(2, 100 * r.earthResponse_min / max)}%`;
+    $('bCritL').textContent = `Time to act: ${hm(r.tCrit_min)}${r.condition.status === 'TO_VALIDATE' ? ' (provisional)' : ''}`; $('bCrit').style.width = `${Math.max(2, 100 * r.tCrit_min / max)}%`;
+    $('detail').textContent = `A = ${r.A} · evacuation: ${r.profile.evacuation.toLowerCase()} · help from Earth: ${r.mode.replace('_', ' ')}${r.liveGuidance ? ' (live guidance possible)' : ''}`;
+  } catch (e) { $('who').className = ''; $('who').textContent = '—'; $('exp').textContent = e.message; }
+}
+const refresh = () => { showLink(); showAuthority(); };
+for (const id of ['profile', 'date', 'cond']) $(id).oninput = refresh;
+refresh();
+</script>
+</main></body></html>
