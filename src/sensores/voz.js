@@ -1,6 +1,7 @@
 // src/sensores/voz.js — «El mensaje es la medición»: analiza el mensaje de voz diario a la Tierra.
 // API: analizarVoz(audioBlob, mediaPersonal, opciones?) -> Promise<{observaciones:[...], resumen}>
 //   mediaPersonal: { velocidad_habla:{media,desv}, pausas:{media,desv}, f0_media:{...}, ... } (línea base antes del vuelo)
+//     También vale la línea base de Miguel: lineas_base['CM-2'] = { velocidad_habla:{pre_media,pre_dt,...}, ... }
 //   opciones: { tripulante:'CM-2', fecha:'2026-11-14T08:12:00Z' }
 // Medidas (aproximaciones, NO transcripción ni diagnóstico):
 //   velocidad_habla  sílabas/s de habla (picos de energía con voz; idea de De Jong y Wempe 2009, Praat)
@@ -176,7 +177,7 @@ function resumir(obs, mediaPersonal, info) {
   const nombres = { velocidad_habla: 'Velocidad del habla', pausas: 'Silencio en el mensaje', numero_pausas: 'Número de pausas',
     duracion_media_pausa: 'Duración media de las pausas', f0_media: 'Tono medio', f0_variabilidad: 'Variación del tono', duracion_mensaje: 'Duración del mensaje' };
   for (const o of obs) {
-    const b = mediaPersonal && mediaPersonal[o.senal];
+    const b = normalizarBase(mediaPersonal && mediaPersonal[o.senal]);
     if (!b || !b.desv) { z[o.senal] = null; continue; }
     z[o.senal] = r2((o.valor - b.media) / b.desv);
     if (Math.abs(z[o.senal]) >= 2 && o.calidad >= 0.4) {
@@ -188,6 +189,12 @@ function resumir(obs, mediaPersonal, info) {
   else if (cambios.length) texto = 'Cambio respecto a tu media personal en: ' + cambios.map(c => c.split(':')[0]).join(', ') + '.';
   else texto = 'Dentro de tu media personal.';
   return { duracion_s: r2(info.dur), duracion_mensaje_s: r2(info.durMensaje), calidad: info.calidad, snr_db: r2(info.rango), z, cambios, texto };
+}
+
+// Acepta {media, desv} (este módulo) y {pre_media, pre_dt} (lineas_base.json de Miguel, por tripulante y señal)
+function normalizarBase(b) {
+  if (!b) return null;
+  return { media: b.media ?? b.pre_media, desv: b.desv ?? b.pre_dt };
 }
 
 function vacio(tripulante, fecha, dur, motivo) {
