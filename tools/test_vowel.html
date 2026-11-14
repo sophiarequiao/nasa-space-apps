@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sustained vowel test · SOSpesAI</title>
+<style>
+  body{font-family:system-ui;max-width:760px;margin:auto;padding:1rem}
+  button,input{font-size:1rem;padding:.5rem 1rem;margin:.2rem}
+  table{border-collapse:collapse;width:100%;margin-top:.5rem} td,th{border-bottom:1px solid #ddd;padding:.3rem;text-align:left}
+  .out{color:#b45309;font-weight:600} #status{font-weight:600} small{color:#555}
+</style>
+<body>
+<h1>Sustained vowel test</h1>
+<p>Take a breath and say <b>"aaaa"</b> on one steady, comfortable note for as long as you comfortably can, 10-15 cm from the microphone. The audio never leaves the browser.</p>
+<button id="rec">● Record</button><button id="stop" disabled>■ Stop</button>
+<input id="file" type="file" accept="audio/*"> <a id="download" style="display:none">⬇ Download recording</a>
+<label>Label <input id="label" value="normal" size="14"></label>
+<p id="status">Ready.</p>
+<p id="text"></p>
+<table id="table"></table>
+
+<h3>My baseline</h3>
+<p><small>Record 3 normal vowels and press "Add to my baseline" after each one. Later recordings are compared with that baseline (z-score); values 2 or more away are highlighted.</small></p>
+<button id="calibrate" disabled>Add to my baseline</button><button id="clear">Clear my baseline</button> <span id="nCal"></span>
+
+<h3>History of this session</h3>
+<table id="hist"></table>
+<button id="csv">⬇ Download history (CSV)</button>
+
+<script type="module">
+import { analyzeVowel, VOWEL_SIGNALS } from '../src/sensors/voice.js';
+const $ = (id) => document.getElementById(id);
+let last = null, rec = null, chunks = [], cap = null; const HIST = [];
+// Minimum sd as a share of the mean when the baseline has few recordings (ASSUMPTION)
+const FLOOR = { max_phonation_time: 0.15, jitter: 0.25, shimmer: 0.25, vowel_harmonicity: 0.08, vowel_f0: 0.05, voice_breaks: 0 };
+const readCal = () => { try { return JSON.parse(localStorage.getItem('vowel_calibration') || '[]'); } catch { return []; } };
+const writeCal = (v) => { try { localStorage.setItem('vowel_calibration', JSON.stringify(v)); } catch {} };
+function baseline() {
+  const cal = readCal(); $('nCal').textContent = `${cal.length} baseline recordings`;
+  if (cal.length < 3) return {};
+  const m = {};
+  for (const s of VOWEL_SIGNALS) {
+    const v = cal.map(c => c[s]).filter(x => typeof x === 'number'); if (v.length < 3) continue;
+    const mu = v.reduce((a, b) => a + b, 0) / v.length;
+    const sd = Math.sqrt(v.reduce((a, b) => a + (b - mu) ** 2, 0) / (v.length - 1));
+    m[s] = { mean: +mu.toFixed(3), sd: +Math.max(sd, FLOOR[s] * Math.abs(mu), s === 'voice_breaks' ? 0.5 : 0.01).toFixed(3), n: v.length };
+  }
+  return m;
+}
+baseline();
+
+async function analyze(blob) {
+  $('status').textContent = 'Analysing…';
+  const t0 = performance.now();
+  const r = await analyzeVowel(blob, baseline(), { crew: 'CM-2' });
+  last = r; $('calibrate').disabled = !r.observations.length;
+  $('status').textContent = `Done in ${Math.round(performance.now() - t0)} ms · quality ${r.summary.quality} · SNR ${r.summary.snr_db ?? '—'} dB`;
+  $('text').textContent = r.summary.text;
+  $('table').innerHTML = '<tr><th>Signal</th><th>Value</th><th>z vs my baseline</th></tr>' + r.observations.map(o => {
+    const z = r.summary.z[o.signal]; const out = z != null && Math.abs(z) >= 2;
+    return `<tr class="${out ? 'out' : ''}"><td>${o.signal}</td><td>${o.value} ${o.unit}</td><td>${z ?? '—'}</td></tr>`;
+  }).join('');
+  if (r.observations.length) {
+    const row = { label: $('label').value.replace(/,/g, ' '), time: new Date().toISOString().slice(11, 19), quality: r.summary.quality, snr_db: r.summary.snr_db };
+    for (const o of r.observations) row[o.signal] = o.value;
+    HIST.push(row); drawHist();
+  }
+}
+const COLS = ['label', 'time', ...VOWEL_SIGNALS, 'quality', 'snr_db'];
+function drawHist() { $('hist').innerHTML = '<tr>' + COLS.map(c => `<th>${c}</th>`).join('') + '</tr>' + HIST.map(x => '<tr>' + COLS.map(c => `<td>${x[c] ?? ''}</td>`).join('') + '</tr>').join(''); }
+
+$('rec').onclick = async () => {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  rec = new MediaRecorder(stream); chunks = [];
+  rec.ondataavailable = (e) => chunks.push(e.data);
+  rec.onstop = () => {
+    stream.getTracks().forEach(t => t.stop());
+    const blob = new Blob(chunks, { type: rec.mimeType });
+    const a = $('download'); a.href = URL.createObjectURL(blob);
+    a.download = `vowel_${$('label').value.replace(/\W+/g, '_')}_${new Date().toISOString().slice(11, 19).replace(/:/g, '')}.webm`; a.style.display = 'inline';
+    analyze(blob);
+  };
+  rec.start(); $('status').textContent = '● Recording… say "aaaa"'; $('rec').disabled = true; $('stop').disabled = false;
+  clearTimeout(cap); cap = setTimeout(() => rec && rec.state === 'recording' && $('stop').click(), 45000);
+};
+$('stop').onclick = () => { clearTimeout(cap); rec.stop(); $('rec').disabled = false; $('stop').disabled = true; };
+$('file').onchange = (e) => e.target.files[0] && analyze(e.target.files[0]);
+$('calibrate').onclick = () => {
+  const row = {}; for (const o of last.observations) row[o.signal] = o.value;
+  const cal = readCal(); cal.push(row); writeCal(cal); baseline(); $('calibrate').disabled = true;
+};
+$('clear').onclick = () => { writeCal([]); baseline(); };
+$('csv').onclick = () => {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([[COLS.join(','), ...HIST.map(x => COLS.map(c => x[c] ?? '').join(','))].join('\n')], { type: 'text/csv' }));
+  a.download = `vowel_history_${new Date().toISOString().slice(11, 19).replace(/:/g, '')}.csv`; a.click();
+};
+</script>
+</body></html>

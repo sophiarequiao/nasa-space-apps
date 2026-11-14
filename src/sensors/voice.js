@@ -166,6 +166,121 @@ export function analyzeSamples(x, fs, baseline = {}, options = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// SUSTAINED VOWEL TEST — "take a breath and say 'aaaa' for as long as you comfortably can".
+// The classic voice-clinic task: a steady vowel isolates the voice source, so small irregularities can be measured.
+// API: analyzeVowel(audioBlob, baseline, options?) -> Promise<{ observations, summary }>
+//   max_phonation_time (s)  how long the vowel is held: drops with breathlessness or poor breath support
+//   jitter (%)              cycle-to-cycle variation of the pitch period (rough or hoarse voice raises it)
+//   shimmer (%)             cycle-to-cycle variation of the amplitude (breathy or hoarse voice raises it)
+//   vowel_harmonicity (dB)  harmonics-to-noise ratio of the vowel (breathy or hoarse voice lowers it)
+//   vowel_f0 (Hz), voice_breaks (count of interruptions or pitch jumps; max_phonation_time is the longest unbroken stretch)
+// Checked on synthetic vowels: all measures move in the right direction, but large jitter and shimmer are
+// under-read (about 0.6-0.75 of the true value) because the fundamental is band-pass filtered before timing.
+// These are screening measures compared with the person's own baseline. They are NOT a diagnosis, and the values
+// are not interchangeable with clinical software (different filters and definitions). Thresholds are ASSUMPTIONS.
+export const VOWEL_SIGNALS = ['max_phonation_time', 'jitter', 'shimmer', 'vowel_harmonicity', 'vowel_f0', 'voice_breaks'];
+const FS_VOWEL = 48000;         // cycle timing needs a finer time grid than 16 kHz
+
+export async function analyzeVowel(audioBlob, baseline = {}, options = {}) {
+  const buf = await audioBlob.arrayBuffer();
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  const ctx = new Ctx();
+  let audio;
+  try { audio = await ctx.decodeAudioData(buf); } finally { ctx.close && ctx.close(); }
+  const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(audio.duration * FS_VOWEL)), FS_VOWEL);
+  const src = off.createBufferSource();
+  src.buffer = audio; src.connect(off.destination); src.start();
+  return analyzeVowelSamples((await off.startRendering()).getChannelData(0), FS_VOWEL, baseline, options);
+}
+
+// Pure core. x: mono samples at fs (48 kHz expected; any multiple of 16 kHz works)
+export function analyzeVowelSamples(x, fs, baseline = {}, options = {}) {
+  const crew = options.crew || 'CM-1';
+  const time = options.time || new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+  const dur = x.length / fs;
+  const hi = biquad(Float32Array.from(x), fs, 'highpass', 70);            // full-rate signal for cycle timing
+
+  // 1) 16 kHz copy for voicing and pitch (same detector as the message analysis)
+  const dec = Math.max(1, Math.round(fs / FS));
+  const lp = dec > 1 ? biquad(biquad(hi, fs, 'lowpass', 6500), fs, 'lowpass', 6500) : hi;
+  const s = new Float32Array(Math.floor(lp.length / dec));
+  for (let i = 0; i < s.length; i++) s[i] = lp[i * dec];
+  const hop = Math.round(HOP_S * FS), win = Math.round(WINDOW_S * FS);
+  const nF = Math.max(0, Math.floor((s.length - win) / hop) + 1);
+  const db = new Float32Array(nF);
+  for (let t = 0; t < nF; t++) { let e = 0; const o = t * hop; for (let j = 0; j < win; j++) e += s[o + j] * s[o + j]; db[t] = 10 * Math.log10(e / win + 1e-12); }
+  const dbs = movingAverage(db, 5);
+  const p10 = percentile(dbs, 0.10), p95 = percentile(dbs, 0.95), range = p95 - p10;
+  const threshold = Math.max(p10 + Math.max(3, 0.2 * range), p95 - 25);   // a held vowel is loud: nothing 25 dB below it counts
+  const tauMin = Math.floor(FS / F0_MAX), tauMax = Math.ceil(FS / F0_MIN), wYin = Math.round(0.025 * FS);
+  const f0Frame = new Float32Array(nF).fill(NaN), dFrame = new Float32Array(nF).fill(NaN);
+  for (let t = 0; t < nF; t++) {
+    if (dbs[t] <= threshold) continue;
+    const o = t * hop; if (o + wYin + tauMax + 2 >= s.length) break;
+    const r = yin(s, o, wYin, FS, tauMin, tauMax);
+    if (r) { f0Frame[t] = r.f; dFrame[t] = r.d; }
+  }
+  let voice = closeGaps(Array.from(f0Frame, v => !Number.isNaN(v)), Math.round(0.10 / HOP_S));   // gaps < 100 ms do not end the vowel
+  // 2) The vowel = longest continuous voiced run
+  let best = [0, -1], start = -1, runs = 0;
+  for (let t = 0; t <= nF; t++) {
+    if (t < nF && voice[t]) { if (start < 0) start = t; }
+    else if (start >= 0) {
+      if (t - start >= 20) runs++;                                  // voiced stretches of at least 200 ms
+      if (t - start > best[1] - best[0] + 1) best = [start, t - 1];
+      start = -1;
+    }
+  }
+  const mpt = (best[1] - best[0] + 1) * HOP_S;
+  if (best[1] < 0 || mpt < 1) return empty(dur, 'No sustained vowel detected: say "aaaa" for at least 2 seconds, close to the microphone.');
+
+  // 3) Pitch and harmonicity over the vowel, skipping 100 ms at each end (onset and release are not steady)
+  const a = best[0] + 10, b = best[1] - 10;
+  const f0s = [], hnrs = [];
+  for (let t = a; t <= b; t++) if (!Number.isNaN(f0Frame[t])) { f0s.push(f0Frame[t]); hnrs.push(Math.min(30, 10 * Math.log10((1 - dFrame[t]) / Math.max(dFrame[t], 1e-3)))); }
+  const f0m = median(f0s);
+  const hnr = hnrs.reduce((p, c) => p + c, 0) / hnrs.length;
+
+  // 4) Cycle marks at full rate: isolate the fundamental (0.6-1.5 × f0) and take its upward zero crossings,
+  //    interpolated between samples. Period Ti = distance between crossings; amplitude Ai = peak-to-peak of the cycle.
+  const i0 = Math.round(a * HOP_S * fs), i1 = Math.min(hi.length, Math.round((b + 1) * HOP_S * fs));
+  const seg = hi.subarray(i0, i1);
+  let fund = biquad(biquad(seg, fs, 'highpass', 0.6 * f0m), fs, 'highpass', 0.6 * f0m);
+  fund = biquad(biquad(fund, fs, 'lowpass', 1.5 * f0m), fs, 'lowpass', 1.5 * f0m);
+  const zc = [];
+  for (let i = Math.round(0.05 * fs); i < fund.length - 1; i++) if (fund[i] <= 0 && fund[i + 1] > 0) zc.push(i + (-fund[i]) / (fund[i + 1] - fund[i]));
+  const T = [], A = [];
+  for (let k = 0; k + 1 < zc.length; k++) {
+    T.push((zc[k + 1] - zc[k]) / fs);
+    let mx = -Infinity, mn = Infinity;
+    for (let i = Math.floor(zc[k]); i < Math.ceil(zc[k + 1]); i++) { if (seg[i] > mx) mx = seg[i]; if (seg[i] < mn) mn = seg[i]; }
+    A.push(mx - mn);
+  }
+  const medT = median(T);
+  const ok = T.map(v => v > 0.8 * medT && v < 1.25 * medT);          // cycles far from the median period are breaks or pitch jumps
+  let dT = 0, dA = 0, sT = 0, sA = 0, pairs = 0, kept = 0, breaks = Math.max(0, runs - 1);   // interruptions of the vowel + pitch jumps inside it
+  for (let k = 0; k < T.length; k++) {
+    if (!ok[k]) { if (k === 0 || ok[k - 1]) breaks++; continue; }
+    sT += T[k]; sA += A[k]; kept++;
+    if (k + 1 < T.length && ok[k + 1]) { dT += Math.abs(T[k + 1] - T[k]); dA += Math.abs(A[k + 1] - A[k]); pairs++; }
+  }
+  if (pairs < 20) return empty(dur, 'The vowel is too short or too unsteady to measure: try again, holding one steady note.');
+  const jitter = 100 * (dT / pairs) / (sT / kept), shimmer = 100 * (dA / pairs) / (sA / kept);
+
+  const quality = r2(clamp((range - 6) / 14) * clamp(mpt / 2));       // needs signal well above the noise and >= 2 s of vowel
+  const measures = [
+    ['max_phonation_time', Math.round(mpt * 10) / 10, 's', 'estimated', quality],
+    ['jitter', r2(jitter), '%', 'estimated', quality],
+    ['shimmer', r2(shimmer), '%', 'estimated', quality],
+    ['vowel_harmonicity', Math.round(hnr * 10) / 10, 'dB', 'estimated', quality],
+    ['vowel_f0', Math.round(f0m * 10) / 10, 'Hz', 'estimated', quality],
+    ['voice_breaks', breaks, 'count', 'estimated', quality],
+  ];
+  const observations = measures.map(([signal, value, unit, method, q]) => ({ crew, signal, value, unit, time, source: 'microphone', method, quality: q, region: 'lungs' }));
+  return { observations, summary: summarize(observations, baseline, { dur, messageDur: mpt, quality, range }) };
+}
+
+// ---------------------------------------------------------------------------
 // Personal baseline from observations in the app format (e.g. observations.json, pre-flight phase)
 export function computeBaseline(observations, crew, phase = 'preflight') {
   const bySignal = {};
@@ -192,7 +307,8 @@ function normalizeBaseline(b) {
 function summarize(obs, baseline, info) {
   const z = {}, changes = [];
   const NAMES = { speech_rate: 'Speech rate', pause_fraction: 'Silence in the message', pause_count: 'Number of pauses',
-    mean_pause_duration: 'Mean pause duration', f0_mean: 'Mean pitch', f0_variability: 'Pitch variation', voice_harmonicity: 'Voice harmonicity', message_duration: 'Message duration' };
+    mean_pause_duration: 'Mean pause duration', f0_mean: 'Mean pitch', f0_variability: 'Pitch variation', voice_harmonicity: 'Voice harmonicity', message_duration: 'Message duration',
+    max_phonation_time: 'Phonation time', jitter: 'Jitter', shimmer: 'Shimmer', vowel_harmonicity: 'Vowel harmonicity', vowel_f0: 'Vowel pitch', voice_breaks: 'Voice breaks' };
   for (const o of obs) {
     const b = normalizeBaseline(baseline && baseline[o.signal]);
     if (!b || !b.sd) { z[o.signal] = null; continue; }
