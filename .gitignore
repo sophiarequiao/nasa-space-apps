@@ -1,0 +1,21 @@
+# Sistema y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Python (scripts de herramientas/)
+__pycache__/
+*.pyc
+.venv/
+
+# Node (por si Sophia D. usa Vite)
+node_modules/
+dist/
+
+# Audios de prueba: NUNCA al repositorio (privacidad; van a Drive 03_Datos/audios_prueba)
+*.wav
+*.webm
+*.ogg
+*.mp3
+*.m4a
