@@ -144,6 +144,7 @@
         <button id="finish" disabled>Finish now</button>
         <label><input id="useCam" type="checkbox" checked> Use the camera</label>
       </div>
+      <div class="row"><label><input id="usePulse" type="checkbox"> Also try the camera pulse. Experimental: only valid if you stay still and silent.</label></div>
       <div class="row"><span id="timer">0:30</span><div class="meter" title="Microphone level"><i id="lvl"></i></div></div>
       <p id="status" class="fine" aria-live="polite">The audio and the video never leave this device. Only the numbers are kept.</p>
       <div class="row"><button id="vowel">Add a voice check: say “aaaa”</button></div>
@@ -260,6 +261,9 @@ function render() {
   else if (ew.level === 'green') { title = 'Within your baseline'; msg = ew.flagged.length ? ew.message : `All ${ew.usable} signals are inside your usual range.`; }
   else { title = 'Not enough to compare yet';
     msg = mode === 'live' && nBase < 2 ? `Save ${2 - nBase} more normal check-in${nBase === 1 ? '' : 's'} to build your baseline. Until then the values are shown without a verdict.` : ew.message; }
+  // Signals without a baseline are shown but not judged: say so, or a green verdict would hide them
+  const unjudged = obs.filter(o => (o.quality ?? 1) >= 0.4 && !(base[o.signal] && base[o.signal].sd > 0)).length;
+  if (obs.length && ew.level !== 'silent' && unjudged) msg += ` ${unjudged} more signal${unjudged === 1 ? ' has' : 's have'} no baseline yet and ${unjudged === 1 ? 'is' : 'are'} not judged.`;
   $('readout').className = 'readout ' + (obs.length ? ew.level : 'silent');
   $('ewTitle').textContent = title; $('ewMsg').textContent = msg;
   $('ewSug').hidden = !ew.suggestion; $('ewSug').textContent = ew.suggestion || '';
@@ -271,7 +275,7 @@ function render() {
       const b = base[o.signal], low = (o.quality ?? 1) < 0.4;
       const z = b && b.sd > 0 ? (o.value - b.mean) / b.sd : null;
       const cls = low ? 'low' : z == null ? 'none' : flagged.has(o.signal) ? 'flag' : '';
-      const st = low ? 'low quality' : z == null ? 'no baseline yet' : flagged.has(o.signal) ? (z > 0 ? 'higher' : 'lower') : 'as usual';
+      const st = low ? 'low quality' : z == null ? 'no baseline' : flagged.has(o.signal) ? (z > 0 ? 'higher' : 'lower') : 'as usual';
       const left = z == null ? 50 : (Math.max(-4, Math.min(4, z)) + 4) / 8 * 100;
       const pct = o.signal === 'pause_fraction', shown = pct ? Math.round(o.value * 100) : o.value, unit = pct ? '%' : (UNIT[o.signal] ?? o.unit ?? '');
       html += `<div class="sig ${cls}"><span>${SIG[o.signal].n}</span><span class="val">${shown}<small>${unit}</small></span>` +
@@ -307,7 +311,8 @@ function onFace(r) {
   const box = $('roi').style;
   if (r.roi) {   // the video is mirrored on screen, so the box is mirrored too
     box.display = 'block'; box.left = `${(1 - r.roi.x - r.roi.w) * 100}%`; box.top = `${r.roi.y * 100}%`; box.width = `${r.roi.w * 100}%`; box.height = `${r.roi.h * 100}%`;
-    if (!pulseOn) { pulseOn = true; startPulse($('v'), (p) => { if (p.observation) { live.pulse = p.observation; } }, { crew: 'CM-2', roi: r.roi }); }
+    if (!$('usePulse').checked) { /* pulse is opt-in: it is only valid when the person is still and silent */ }
+    else if (!pulseOn) { pulseOn = true; startPulse($('v'), (p) => { if (p.observation) { live.pulse = p.observation; } }, { crew: 'CM-2', roi: r.roi }); }
     else setPulseRoi(r.roi);
   } else box.display = 'none';
   if (r.eyeOpenness != null) $('eye').firstElementChild.style.width = `${Math.round(r.eyeOpenness * 100)}%`;
