@@ -2,6 +2,7 @@
 //   node tools/test_voice.mjs
 // Signal: 150 ms "syllables" (vowel with 5 harmonics) every 200 ms -> 5 syllables/s of speech,
 // pitch 110-130 Hz, a 0.6 s pause every 2 s of speech, background noise at -45 dB.
+// Drafted with AI assistance (Claude, Anthropic). MIT licence.
 import { analyzeSamples } from '../src/sensors/voice.js';
 
 const FS = 16000;

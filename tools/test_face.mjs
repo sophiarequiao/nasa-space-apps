@@ -1,4 +1,5 @@
 // Test the eyelid logic of face.js with SYNTHETIC blink scores:  node tools/test_face.mjs
+// Drafted with AI assistance (Claude, Anthropic). MIT licence.
 import { createEyeTracker, createExpressionTracker, symmetryIndex } from '../src/sensors/face.js';
 
 // Builds 60 s at 30 fps: eyes open (score 0.05) with the given events {at (s), ms, kind}

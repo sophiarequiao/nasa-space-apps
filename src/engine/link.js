@@ -15,7 +15,8 @@ export const SEP_MORATORIUM_DEG = 2.0;   // Mars within 2° of the Sun: command 
 // ISS: voice and data through the geostationary TDRS relays (~36,000 km up + ~36,000 km down).
 //      Light time alone is ~0.24 s; with processing, "near real time". ASSUMPTION: 0.25 s (TO CHECK).
 const OWLT_ISS_S = 0.25;
-// Moon: mean Earth-Moon distance 384,400 km -> ~1.28 s (TO CHECK against the NASA Moon fact sheet).
+// Moon: mean Earth-Moon distance 384,400 km -> 1.28 s (NASA Moon Fact Sheet: semimajor axis 0.3844 million km;
+//       perigee 0.3633 and apogee 0.4055 million km, so the real value moves between 1.21 and 1.35 s).
 const OWLT_MOON_S = 384_400 / C_KM_S;
 // Lunar south pole without a relay satellite: Earth is below the horizon ~half of each sidereal month.
 // SIMULATION with a fixed calendar (ASSUMPTION): visible during the first half of each cycle from the epoch.
@@ -104,7 +105,7 @@ export function getLink(dateISO, profile = 'mars', custom = {}) {
       const sep = marsSeries(t, 'sep_deg');
       const hasLink = sep >= SEP_MORATORIUM_DEG;
       return result(owlt, hasLink, 'solar_conjunction', hasLink ? 0 : waitForConjunctionEnd(t),
-        `JPL ephemerides (approx.) · Sun-Earth-Mars separation ${sep.toFixed(1)}°`);
+        `JPL approximate elements, checked against JPL Horizons · Sun-Earth-Mars separation ${sep.toFixed(1)}°`);
     }
 
     case 'custom': {         // any mission: the caller sets the one-way light time (and, optionally, an outage)

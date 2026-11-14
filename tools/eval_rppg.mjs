@@ -1,6 +1,7 @@
 // Replays a recording made with tools/record_rppg.html through the tracked pulse estimator:  node tools/eval_rppg.mjs file.csv
 // Prints, for each part of the recording, how many seconds showed a pulse and which values. If the file carries a
 // reference pulse (typed in the recorder), it is printed next to them. The recordings stay outside the repository.
+// Drafted with AI assistance (Claude, Anthropic). MIT licence.
 import fs from 'fs';
 import { estimatePulseZones, createPulseGate } from '../src/sensors/rppg.js';
 const file = process.argv[2]; if (!file) { console.log('usage: node tools/eval_rppg.mjs recording.csv'); process.exit(1); }

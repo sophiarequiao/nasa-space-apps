@@ -1,4 +1,5 @@
 // Test the early-warning rules:  node tools/test_early_warning.mjs
+// Drafted with AI assistance (Claude, Anthropic). MIT licence.
 import { earlyWarning } from '../src/engine/earlyWarning.js';
 const base = { speech_rate: { mean: 4.6, sd: 0.23 }, pause_fraction: { mean: 0.35, sd: 0.04 }, f0_mean: { mean: 165, sd: 8 }, voice_harmonicity: { mean: 8.2, sd: 0.8 },
   blink_rate: { mean: 15, sd: 4 }, perclos: { mean: 4, sd: 1.5 }, heart_rate: { pre_mean: 72, pre_sd: 5 } };

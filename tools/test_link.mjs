@@ -1,4 +1,5 @@
 // Test link.js without a browser:  node tools/test_link.mjs
+// Drafted with AI assistance (Claude, Anthropic). MIT licence.
 import { readFileSync } from 'node:fs';
 import { getLink, setLinkData, formatDuration as f } from '../src/engine/link.js';
 setLinkData(JSON.parse(readFileSync(new URL('../data/mars_link.json', import.meta.url))));

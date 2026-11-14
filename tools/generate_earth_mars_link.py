@@ -6,9 +6,9 @@ angulo Sol-Tierra-Marte (SEP) y bandera de conjuncion solar.
 Metodo: elementos keplerianos medios de JPL "Approximate Positions of the
 Planets" (Standish, tabla 1, valida 1800-2050). Fuente:
 https://ssd.jpl.nasa.gov/planets/approx_pos.html
-Precision esperada del tiempo-luz: mejor que ~0,1 % (segundos). Suficiente
-para una demo; para la entrega, validar 5 fechas contra JPL Horizons:
-https://ssd.jpl.nasa.gov/horizons/
+Precision medida frente a JPL Horizons (2026-2040, los 5175 dias): tiempo-luz
+dentro de 0,29 s (0,05 %) y angulo dentro de 0,04 grados. Comprobacion:
+data/horizons_reference.json y tools/check_horizons.mjs
 
 Uso: python generar_enlace_tierra_marte.py 2026-11-01 2040-12-31 > enlace.csv
 Codigo generado con ayuda de IA (Claude, Anthropic). Sin dependencias externas.

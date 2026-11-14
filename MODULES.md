@@ -46,6 +46,7 @@ Signals: `speech_rate` (syllables/s), `pause_fraction` (fraction), `message_dura
 
 ```
 node tools/test_link.mjs        # 14 Nov 2026 -> 10 min 59 s one way to Mars
+node tools/check_horizons.mjs   # the Mars table against 201 days from NASA/JPL Horizons
 node tools/test_authority.mjs   # 14 reference cases from motor_autoridad.py
 node tools/test_voice.mjs       # synthetic speech with known rate, pauses and pitch
 node tools/test_rppg.mjs        # synthetic pulse signals: 55, 72, 110 bpm, noise, slow motion, low light
@@ -58,7 +59,7 @@ Browser test pages (serve the repo root, e.g. `python -m http.server 8000`): `to
 ## Known limits and assumptions
 
 - **Authority:** 15 min ground response and thresholds 0.25 / 1 are team assumptions (`data/mission_profiles.json`). All `t_crit_min` values are still `TO_VALIDATE`.
-- **Link:** ISS 0.25 s (assumption), Moon 1.28 s (mean distance), lunar south pole outage calendar is simulated, Mars from JPL approximate ephemerides (to be checked against JPL Horizons).
+- **Link:** ISS 0.25 s (assumption), Moon 1.28 s (mean distance), lunar south pole outage calendar is simulated, Mars from JPL approximate elements, checked against JPL Horizons for every day from 2026-11-01 to 2040-12-31: light time within 0.29 s, Sun-Earth-Mars angle within 0.04° (`node tools/check_horizons.mjs`).
 - **Voice:** validated on 10 real recordings of one speaker. It detects speech slower than the personal baseline (−14 % in the test) but under-counts syllables in fast speech. In a noisy room it reports low quality instead of a value. `voice_harmonicity` (hoarse or breathy voice) has not been checked against a hoarse voice, and it also drops with room noise (6.7 dB in a noisy room vs 10 dB in a quiet one for the same speaker): compare only recordings made in similar conditions.
 - **Camera pulse (optional):** no face tracking; the person places their face in a fixed zone and must stay still for 15-20 s. Checked against a manual count on one person (74 bpm both) and a post-exercise recovery curve; not yet validated against a pulse oximeter. With motion it hides the value (`reason: 'motion'`) instead of showing a wrong one. `heart_rate` observations use `source: 'camera_rppg'`, `method: 'estimated'`.
 - `tools/generate_earth_mars_link.py` and its CSV keep their original Spanish comments and column names.

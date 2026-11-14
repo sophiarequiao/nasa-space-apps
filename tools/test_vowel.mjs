@@ -2,6 +2,7 @@
 // The vowel is built cycle by cycle: each cycle gets its own period (jitter) and amplitude (shimmer).
 // For independent random perturbations of relative size σ, the expected "local" jitter/shimmer is 1.13·σ.
 // The analysis matches 2 periods at a time, so it reads about half of that value: check the direction, not the number.
+// Drafted with AI assistance (Claude, Anthropic). MIT licence.
 import { analyzeVowelSamples } from '../src/sensors/voice.js';
 const FS = 48000;
 let seed = 3; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);

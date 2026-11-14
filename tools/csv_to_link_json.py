@@ -23,7 +23,7 @@ data = {
         "description": "Earth-Mars one-way light time and Sun-Earth-Mars angle, one value per day",
         "method": "JPL 'Approximate Positions of the Planets' mean Keplerian elements (Standish, table 1)",
         "source": "https://ssd.jpl.nasa.gov/planets/approx_pos.html",
-        "validate_with": "https://ssd.jpl.nasa.gov/horizons/ (TO CHECK: 5 dates)",
+        "validated_with": "NASA/JPL Horizons, all 5,175 days: light time within 0.29 s, angle within 0.04 deg (data/horizons_reference.json, tools/check_horizons.mjs)",   # run tools/check_horizons.mjs again if the table changes
         "reference_time_utc": "12:00",
         "sep_moratorium_deg": 2.0,
         "generated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ"),

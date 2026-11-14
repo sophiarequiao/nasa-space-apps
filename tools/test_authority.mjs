@@ -1,4 +1,5 @@
 // Test authority.js against the reference output of motor_autoridad.py:  node tools/test_authority.mjs
+// Drafted with AI assistance (Claude, Anthropic). MIT licence.
 import { readFileSync } from 'node:fs';
 import { setLinkData } from '../src/engine/link.js';
 import { computeAuthority, setAuthorityData } from '../src/engine/authority.js';

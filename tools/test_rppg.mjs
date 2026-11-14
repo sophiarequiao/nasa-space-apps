@@ -1,5 +1,6 @@
 // Test the core of rppg.js with SYNTHETIC signals of known heart rate:  node tools/test_rppg.mjs
 // Skin at level 120/255, 0.5 % pulse wave (typical), slow light drift, noise and irregular frame timing.
+// Drafted with AI assistance (Claude, Anthropic). MIT licence.
 import { estimatePulse, estimatePulseZones, createPulseGate } from '../src/sensors/rppg.js';
 let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
 const gauss = () => Math.sqrt(-2 * Math.log(rnd() + 1e-12)) * Math.cos(2 * Math.PI * rnd());
