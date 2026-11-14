@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>face.js test · SOSpesAI</title>
+<style>
+  body{font-family:system-ui;max-width:820px;margin:auto;padding:1rem}
+  button,select,input{font-size:1rem;padding:.4rem .6rem;margin:.15rem}
+  #box{position:relative;width:480px;max-width:100%}
+  video{width:100%;transform:scaleX(-1);background:#000;border-radius:8px;display:block}
+  #roi{position:absolute;border:2px solid #22c55e;border-radius:10px;pointer-events:none;display:none}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.5rem;margin:.6rem 0}
+  .m{border:1px solid #ddd;border-radius:10px;padding:.6rem} .m b{display:block;font-size:1.5rem} .m span{color:#555;font-size:.85rem}
+  #eye{height:12px;background:#ddd;border-radius:6px;overflow:hidden;width:480px;max-width:100%} #eye div{height:100%;background:#22c55e;width:0}
+  small{color:#555}
+</style>
+<body>
+<h1>face.js test (eyelids, yawns, face-tracked pulse)</h1>
+<p><small>Look at the screen normally. The first numbers appear after 20 s; the window is 60 s. The video never leaves the browser and is not stored. First start downloads the face model (about 4 MB) unless it is in vendor/mediapipe.</small></p>
+<button id="start">▶ Start</button><button id="stop" disabled>■ Stop</button>
+<label><input id="withPulse" type="checkbox" checked> also measure pulse, following the face</label>
+<div id="box"><video id="v" playsinline muted></video><div id="roi"></div></div>
+<p id="state"><b>Not started.</b></p>
+<small>Eye openness</small><div id="eye"><div></div></div>
+<div class="cards">
+  <div class="m"><span>Blink rate</span><b id="blink">—</b><span>blinks/min</span></div>
+  <div class="m"><span>PERCLOS</span><b id="perclos">—</b><span>% of time eyes closed</span></div>
+  <div class="m"><span>Slow closures</span><b id="long">—</b><span>longer than 0.5 s</span></div>
+  <div class="m"><span>Yawns</span><b id="yawn">—</b><span>in the window</span></div>
+  <div class="m"><span>Pulse (tracked)</span><b id="bpm">—</b><span id="bpmInfo">bpm</span></div>
+</div>
+
+<h3>Automatic log (one row per second)</h3>
+<p><small>Type what you are doing in "Label" (normal, blink_fast, eyes_closed_slow, yawn, moving…) and change it when you change test.</small></p>
+<label>Label <input id="label" value="normal" size="22"></label>
+<button id="log">⬇ Download log</button> <span id="logN"><small>0 rows</small></span>
+
+<script type="module">
+import { startFace, stopFace } from '../src/sensors/face.js';
+import { startPulse, stopPulse, setPulseRoi } from '../src/sensors/rppg.js';
+const $ = (id) => document.getElementById(id);
+const LOG = []; let pulse = null, pulseOn = false;
+const clean = (s) => s.replace(/,/g, ' ');
+
+function onFace(r) {
+  $('state').firstChild.textContent = r.state === 'loading' ? 'Loading the face model…' : r.state === 'no_face' ? 'No face in view.' : r.state === 'measuring' ? `Measuring… ${Math.round(r.window_s)} of 20 s` : `OK · ${r.fps} fps · quality ${r.quality} · window ${Math.round(r.window_s)} s`;
+  if (r.roi) {   // the video is mirrored on screen, so the box is mirrored too
+    const b = $('roi').style; b.display = 'block'; b.left = `${(1 - r.roi.x - r.roi.w) * 100}%`; b.top = `${r.roi.y * 100}%`; b.width = `${r.roi.w * 100}%`; b.height = `${r.roi.h * 100}%`;
+    if ($('withPulse').checked) {
+      if (!pulseOn) { pulseOn = true; startPulse($('v'), (p) => { pulse = p; $('bpm').textContent = p.bpm ?? '—'; $('bpmInfo').textContent = p.state === 'ok' ? `bpm · quality ${p.quality}` : (p.reason || p.state).replace(/_/g, ' '); }, { crew: 'CM-2', roi: r.roi }); }
+      else setPulseRoi(r.roi);
+    }
+  } else $('roi').style.display = 'none';
+  if (r.eyeOpenness != null) $('eye').firstChild.style.width = `${Math.round(r.eyeOpenness * 100)}%`;
+  if (r.state === 'ok' || r.state === 'measuring') {
+    $('blink').textContent = r.blink_rate ?? '—'; $('perclos').textContent = r.perclos ?? '—'; $('long').textContent = r.long_closures ?? '—'; $('yawn').textContent = r.yawns ?? '—';
+  }
+  if (r.state !== 'loading') {
+    LOG.push([new Date().toISOString().slice(11, 19), clean($('label').value), r.state, r.eyeOpenness ?? '', r.blink_rate ?? '', r.perclos ?? '', r.mean_blink_ms ?? '', r.long_closures ?? '', r.yawns ?? '', r.fps ?? '', r.quality ?? '',
+      pulse ? (pulse.bpm ?? '') : '', pulse ? (pulse.bpm_raw ?? '') : '', pulse ? pulse.quality : '', pulse ? (pulse.reason ?? '') : '']);
+    $('logN').firstChild.textContent = `${LOG.length} rows`;
+  }
+}
+$('start').onclick = async () => {
+  $('start').disabled = true;
+  try { await startFace($('v'), onFace, { crew: 'CM-2' }); $('stop').disabled = false; }
+  catch (e) { $('state').firstChild.textContent = 'Could not start: ' + e.message; $('start').disabled = false; console.error(e); }
+};
+$('stop').onclick = () => { stopPulse(); pulseOn = false; pulse = null; stopFace(); $('start').disabled = false; $('stop').disabled = true; $('roi').style.display = 'none'; };
+$('log').onclick = () => {
+  const txt = ['time,label,state,eye_openness,blink_rate,perclos,mean_blink_ms,long_closures,yawns,fps,quality,bpm_shown,bpm_raw,pulse_quality,pulse_reason', ...LOG.map(f => f.join(','))].join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'text/csv' }));
+  a.download = `face_log_${new Date().toISOString().slice(11, 19).replace(/:/g, '')}.csv`; a.click();
+};
+</script>
+</body></html>

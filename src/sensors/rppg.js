@@ -1,5 +1,5 @@
 // src/sensors/rppg.js — OPTIONAL: heart rate from the camera (rPPG). Not a medical device.
-// API: startPulse(videoEl, onResult, options?) / stopPulse()
+// API: startPulse(videoEl, onResult, options?) / stopPulse() / setPulseRoi(roi)
 //   onResult({ state, bpm, bpm_raw, quality, reason, observation, progress, fps, light, waveform })
 //     state: 'measuring' (not enough data yet) | 'ok' | 'low_quality'
 //     bpm: heart rate ONLY if the quality is good enough; otherwise null (the value is not shown)
@@ -7,7 +7,7 @@
 //     reason: null | 'gathering_data' | 'low_light' | 'saturated' | 'low_frame_rate' | 'motion' | 'weak_signal' | 'unstable'
 //     observation: object in the app format when state === 'ok'; otherwise null
 //   options: { crew, method: 'pos'|'green', roi: {x,y,w,h} (fractions of the frame), window_s, min_quality, onSample }
-// Method (no face tracking): a fixed zone where the person places their face -> mean R, G, B per frame
+// Method: a zone of the image (fixed by default; face.js can move it with setPulseRoi) -> mean R, G, B per frame
 //   -> resample to 30 Hz -> detrend -> band-pass 0.7-3 Hz -> spectrum over a 12 s window -> peak = heart rate.
 //   'pos' (default): combination of the three channels, more robust to motion (Wang et al. 2017; simplified
 //   here to a single window). 'green': green channel only (Verkruysse et al. 2008).
@@ -50,10 +50,10 @@ export async function startPulse(videoEl, onResult, options = {}) {
     await videoEl.play();
   }
 
-  const roi = s.op.roi || ROI;
+  s.roi = s.op.roi || ROI;
   const sample = () => {
     if (!s.active) return;
-    const v = s.video, W = v.videoWidth, H = v.videoHeight;
+    const v = s.video, W = v.videoWidth, H = v.videoHeight, roi = s.roi;
     if (W && H) {
       s.ctx.drawImage(v, roi.x * W, roi.y * H, roi.w * W, roi.h * H, 0, 0, s.canvas.width, s.canvas.height);
       const d = s.ctx.getImageData(0, 0, s.canvas.width, s.canvas.height).data;
@@ -98,6 +98,13 @@ export async function startPulse(videoEl, onResult, options = {}) {
       amplitude_pct: res.amplitude_pct ?? null, rg: res.rg ?? null, bg: res.bg ?? null,   // diagnostics
     });
   }, STEP_MS);
+}
+
+/** Moves the measurement zone while running, e.g. to follow the face found by face.js. roi = {x,y,w,h} as fractions of the frame. */
+export function setPulseRoi(roi) {
+  if (!S || !roi || !(roi.w > 0.05) || !(roi.h > 0.05)) return;
+  const x = Math.max(0, Math.min(0.95, roi.x)), y = Math.max(0, Math.min(0.95, roi.y));
+  S.roi = { x, y, w: Math.min(roi.w, 1 - x), h: Math.min(roi.h, 1 - y) };
 }
 
 export function stopPulse() {
