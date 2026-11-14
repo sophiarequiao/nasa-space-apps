@@ -19,6 +19,7 @@ const SILABA_MIN_S = 0.10;      // como mucho ~10 sílabas/s (HIPÓTESIS)
 const PROMINENCIA_DB = 2.0;     // un pico de sílaba sobresale >= 2 dB del valle anterior (HIPÓTESIS)
 const F0_MIN = 70, F0_MAX = 400;
 const YIN_UMBRAL = 0.30;        // 0,15 perdía ~3/4 de las tramas con voz en una sala con ruido (ajustado con grabación real, HIPÓTESIS)
+const YIN_UMBRAL_F0 = 0.15;     // para el tono medio solo se usan tramas fiables (evita voces de fondo)
 const VOZ_CERCA_TRAMAS = 4;     // una trama es habla si hay tono a ±40 ms (HIPÓTESIS)
 const HUECO_MAX_S = 0.20;       // huecos < 200 ms (consonantes sordas) cuentan como habla (HIPÓTESIS)
 export const SENALES_VOZ = ['velocidad_habla', 'pausas', 'numero_pausas', 'duracion_media_pausa', 'f0_media', 'f0_variabilidad', 'duracion_mensaje'];
@@ -67,13 +68,17 @@ export function analizarMuestras(x, fs, mediaPersonal = {}, opciones = {}) {
   const candidata = Array.from(dbs, v => v > umbral);
   const tauMin = Math.floor(fs / F0_MAX), tauMax = Math.ceil(fs / F0_MIN);
   const wYin = Math.round(0.025 * fs);
-  const f0Trama = new Float32Array(nT).fill(NaN);
+  const f0Trama = new Float32Array(nT).fill(NaN);   // tono para detectar habla (umbral permisivo)
+  const f0Fiable = new Float32Array(nT).fill(NaN);  // tono para medir (umbral estricto)
   for (let t = 0; t < nT; t += 2) {                            // YIN cada 20 ms
     if (!candidata[t]) continue;
     const o = t * paso;
     if (o + wYin + tauMax + 2 >= s.length) break;
-    const f = yin(s, o, wYin, fs, tauMin, tauMax);
-    if (f) { f0Trama[t] = f; if (t + 1 < nT) f0Trama[t + 1] = f; }
+    const r = yin(s, o, wYin, fs, tauMin, tauMax);
+    if (r) {
+      f0Trama[t] = r.f; if (t + 1 < nT) f0Trama[t + 1] = r.f;
+      if (r.d < YIN_UMBRAL_F0) f0Fiable[t] = r.f;
+    }
   }
   const sonora = (t) => !Number.isNaN(f0Trama[t]);
   let voz = candidata.map((c, t) => {
@@ -97,11 +102,11 @@ export function analizarMuestras(x, fs, mediaPersonal = {}, opciones = {}) {
   const tHabla = Math.max(durMensaje - tPausas, 1e-3);
 
   // 5) Tono: quitar saltos de octava: fuera de [mediana/1,8, mediana×1,8]
-  const f0Bruto = Array.from(f0Trama).filter(v => !Number.isNaN(v));
+  const f0Bruto = Array.from(f0Fiable).filter(v => !Number.isNaN(v));
   const med = mediana(f0Bruto);
   const f0 = f0Bruto.filter(v => v > med / 1.8 && v < med * 1.8);
   const tramasVoz = voz.slice(primero, ultimo + 1).filter(Boolean).length;
-  const fracSonora = tramasVoz ? f0.length / tramasVoz : 0;
+  const fracSonora = tramasVoz ? (2 * f0.length) / tramasVoz : 0;   // f0Fiable se calcula cada 2 tramas
 
   // 6) Sílabas: picos de energía con voz, prominentes y separados >= 100 ms
   let silabas = 0, ultimoPico = -1e9, valorUltimo = -Infinity, minDesde = umbral;
@@ -144,7 +149,7 @@ export function analizarMuestras(x, fs, mediaPersonal = {}, opciones = {}) {
     }));
 
   const resumen = resumir(observaciones, mediaPersonal, { dur, durMensaje, calidad, rango });
-  if (opciones.depurar) resumen._depuracion = { dbs, umbral, p10, p95, candidata, f0Trama, voz, pausas };   // solo para ajustar
+  if (opciones.depurar) resumen._depuracion = { dbs, umbral, p10, p95, candidata, f0Trama, f0Fiable, voz, pausas };   // solo para ajustar
   return { observaciones, resumen };
 }
 
@@ -210,7 +215,7 @@ function yin(x, o, W, fs, tauMin, tauMax) {
   const den = a - 2 * b + c;
   const t = den !== 0 ? tau + 0.5 * (a - c) / den : tau;
   const f = fs / t;
-  return f >= F0_MIN && f <= F0_MAX ? f : null;
+  return f >= F0_MIN && f <= F0_MAX ? { f, d: b } : null;
 }
 
 // --- utilidades ---------------------------------------------------------------
