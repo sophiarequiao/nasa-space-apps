@@ -10,11 +10,14 @@
 <body>
 <h1>Sustained vowel test</h1>
 <p>Take a breath and say <b>"aaaa"</b> on one steady, comfortable note for as long as you comfortably can, 10-15 cm from the microphone. The audio never leaves the browser.</p>
-<button id="rec">● Record</button><button id="stop" disabled>■ Stop</button>
-<input id="file" type="file" accept="audio/*"> <a id="download" style="display:none">⬇ Download recording</a>
-<label>Label <input id="label" value="normal" size="14"></label>
+<p><b>1.</b> <label>Label of the next recording <input id="label" value="normal" size="14"></label></p>
+<p><b>2.</b> <button id="rec">● Record</button><button id="stop" disabled>■ Stop</button>
+<label><input id="ns" type="checkbox" checked> Browser noise filter</label></p>
+<p><b>3.</b> <a id="download" style="display:none">⬇ Download this recording</a><span id="nodl"><small>The download link appears here after each recording.</small></span></p>
 <p id="status">Ready.</p>
+<p id="verdict" style="font-weight:600"></p>
 <p id="text"></p>
+<p><small>Or analyse a saved file: <input id="file" type="file" accept="audio/*"></small></p>
 <table id="table"></table>
 
 <h3>My baseline</h3>
@@ -52,7 +55,10 @@ async function analyze(blob) {
   const t0 = performance.now();
   const r = await analyzeVowel(blob, baseline(), { crew: 'CM-2' });
   last = r; $('calibrate').disabled = !r.observations.length;
-  $('status').textContent = `Done in ${Math.round(performance.now() - t0)} ms · quality ${r.summary.quality} · SNR ${r.summary.snr_db ?? '—'} dB`;
+  $('status').textContent = `Done in ${Math.round(performance.now() - t0)} ms · quality ${r.summary.quality} · SNR ${r.summary.snr_db ?? '—'} dB · irregular cycles ${r.summary.irregular_cycles_pct ?? '—'} % (limit 15)`;
+  const good = r.observations.length > 0;
+  $('verdict').textContent = good ? '✔ ACCEPTED — this recording was measured.' : '✖ REJECTED — not measured, so "Add to my baseline" stays off. Download it anyway, then record again.';
+  $('verdict').style.color = good ? '#15803d' : '#b91c1c';
   $('text').textContent = r.summary.text;
   $('table').innerHTML = '<tr><th>Signal</th><th>Value</th><th>z vs my baseline</th></tr>' + r.observations.map(o => {
     const z = r.summary.z[o.signal]; const out = z != null && Math.abs(z) >= 2;
@@ -68,14 +74,14 @@ const COLS = ['label', 'time', ...VOWEL_SIGNALS, 'quality', 'snr_db'];
 function drawHist() { $('hist').innerHTML = '<tr>' + COLS.map(c => `<th>${c}</th>`).join('') + '</tr>' + HIST.map(x => '<tr>' + COLS.map(c => `<td>${x[c] ?? ''}</td>`).join('') + '</tr>').join(''); }
 
 $('rec').onclick = async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: false } });
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: $('ns').checked, autoGainControl: false } });
   rec = new MediaRecorder(stream); chunks = [];
   rec.ondataavailable = (e) => chunks.push(e.data);
   rec.onstop = () => {
     stream.getTracks().forEach(t => t.stop());
     const blob = new Blob(chunks, { type: rec.mimeType });
     const a = $('download'); a.href = URL.createObjectURL(blob);
-    a.download = `vowel_${$('label').value.replace(/\W+/g, '_')}_${new Date().toISOString().slice(11, 19).replace(/:/g, '')}.webm`; a.style.display = 'inline';
+    a.download = `vowel_${$('label').value.replace(/\W+/g, '_')}_${$('ns').checked ? 'nf' : 'raw'}_${new Date().toISOString().slice(11, 19).replace(/:/g, '')}.webm`; a.style.display = 'inline'; $('nodl').style.display = 'none';
     analyze(blob);
   };
   rec.start(); $('status').textContent = '● Recording… say "aaaa"'; $('rec').disabled = true; $('stop').disabled = false;

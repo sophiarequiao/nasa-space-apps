@@ -264,9 +264,10 @@ export function analyzeVowelSamples(x, fs, baseline = {}, options = {}) {
     sT += T[k]; sA += A[k]; kept++;
     if (k + 1 < T.length && ok[k + 1]) { dT += Math.abs(T[k + 1] - T[k]); dA += Math.abs(A[k + 1] - A[k]); pairs++; }
   }
-  if (pairs < 20) return empty(dur, 'The vowel is too short or too unsteady to measure: try again, holding one steady note.');
+  const irregular = Math.round(1000 * breaks / Math.max(1, T.length)) / 10;   // % of cycles that start an irregular stretch
+  if (pairs < 20) return empty(dur, 'The vowel is too short or too unsteady to measure: try again, holding one steady note.', { range, irregular });
   // Many irregular cycles on a held vowel almost always mean background noise, not the voice (seen in a real noisy room)
-  if (breaks > 0.15 * T.length) return empty(dur, 'Too much background noise to measure the vowel: move somewhere quieter or use a headset microphone.');
+  if (breaks > 0.15 * T.length) return empty(dur, 'Too much background noise to measure the vowel: move somewhere quieter or use a headset microphone.', { range, irregular });
   const jitter = 100 * (dT / pairs) / (sT / kept), shimmer = 100 * (dA / pairs) / (sA / kept);
 
   const quality = r2(clamp((range - 15) / 15) * clamp(mpt / 2));      // jitter and shimmer need a clean signal: 15 dB -> 0, 30 dB -> 1 (ASSUMPTION)
@@ -279,7 +280,7 @@ export function analyzeVowelSamples(x, fs, baseline = {}, options = {}) {
     ['voice_breaks', breaks, 'count', 'estimated', quality],
   ];
   const observations = measures.map(([signal, value, unit, method, q]) => ({ crew, signal, value, unit, time, source: 'microphone', method, quality: q, region: 'lungs' }));
-  return { observations, summary: summarize(observations, baseline, { dur, messageDur: mpt, quality, range }) };
+  return { observations, summary: summarize(observations, baseline, { dur, messageDur: mpt, quality, range, irregular }) };
 }
 
 // ---------------------------------------------------------------------------
@@ -324,11 +325,15 @@ function summarize(obs, baseline, info) {
   if (info.quality < 0.4) text = 'Low recording quality: repeat the message somewhere quieter and speak for at least 10 s.';
   else if (changes.length) text = 'Change from your personal baseline in: ' + changes.map(c => NAMES[c.signal].toLowerCase()).join(', ') + '.';
   else text = 'Within your personal baseline.';
-  return { duration_s: r2(info.dur), message_duration_s: r2(info.messageDur), quality: info.quality, snr_db: r2(info.range), z, changes, text };
+  return { duration_s: r2(info.dur), message_duration_s: r2(info.messageDur), quality: info.quality, snr_db: r2(info.range),
+    ...(info.irregular != null ? { irregular_cycles_pct: info.irregular } : {}), z, changes, text };
 }
 
-function empty(dur, reason) {
-  return { observations: [], summary: { duration_s: r2(dur), quality: 0, z: {}, changes: [], text: reason } };
+// Nothing measurable. info (optional) keeps the diagnostics so the caller can show why
+function empty(dur, reason, info = {}) {
+  return { observations: [], summary: { duration_s: r2(dur), quality: 0,
+    ...(info.range != null ? { snr_db: r2(info.range) } : {}),
+    ...(info.irregular != null ? { irregular_cycles_pct: info.irregular } : {}), z: {}, changes: [], text: reason } };
 }
 
 // ---------------------------------------------------------------------------
