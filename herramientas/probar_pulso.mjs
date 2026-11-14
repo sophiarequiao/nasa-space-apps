@@ -4,12 +4,12 @@ import { estimarPulso } from '../src/sensores/rppg.js';
 let sem = 7; const rnd = () => ((sem = (sem * 16807) % 2147483647) / 2147483647);
 const gauss = () => Math.sqrt(-2 * Math.log(rnd() + 1e-12)) * Math.cos(2 * Math.PI * rnd());
 
-function sintetica({ bpm, amp = 0.005, ruido = 0.25, dur = 14, fps = 30, nivel = 120, mov = 0 }) {
+function sintetica({ bpm, amp = 0.005, ruido = 0.25, dur = 14, fps = 30, nivel = 120, mov = 0, lento = 0, fLento = 0.6 }) {
   const t = [], r = [], g = [], b = []; let tt = 0;
   while (tt < dur * 1000) {
     const s = tt / 1000, f = bpm / 60;
     const pulso = bpm ? Math.sin(2 * Math.PI * f * s) + 0.3 * Math.sin(4 * Math.PI * f * s) : 0;
-    const deriva = 1 + 0.02 * Math.sin(2 * Math.PI * 0.08 * s) + mov * 0.03 * Math.sin(2 * Math.PI * 0.45 * s + 1);
+    const deriva = 1 + 0.02 * Math.sin(2 * Math.PI * 0.08 * s) + mov * 0.03 * Math.sin(2 * Math.PI * 0.45 * s + 1) + lento * Math.sin(2 * Math.PI * fLento * s + 2);
     t.push(tt);
     r.push(nivel * 1.25 * deriva * (1 + 0.4 * amp * pulso) + ruido * gauss());
     g.push(nivel * deriva * (1 + amp * pulso) + ruido * gauss());
@@ -27,6 +27,9 @@ const casos = [
   ['72 lpm, señal débil (0,2 %) y más ruido', { bpm: 72, amp: 0.002, ruido: 0.5 }, 72],
   ['72 lpm con movimiento de luz', { bpm: 72, mov: 1 }, 72],
   ['Sin pulso (solo ruido): no debe dar valor', { bpm: 0 }, null],
+  ['Sin pulso y balanceo lento a 0,6 Hz (3 %): no debe dar valor', { bpm: 0, lento: 0.03 }, null],
+  ['Sin pulso y balanceo a 0,66 Hz (3 %): no debe dar valor', { bpm: 0, lento: 0.03, fLento: 0.66 }, null],
+  ['72 lpm con balanceo lento a 0,6 Hz (1 %): 72 o nada, nunca 42-46', { bpm: 72, lento: 0.01 }, 72],
   ['Poca luz (nivel 30): no debe dar valor', { bpm: 72, nivel: 30 }, null],
 ];
 let fallos = 0;

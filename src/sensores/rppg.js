@@ -17,6 +17,7 @@
 
 const FS = 30;                         // Hz tras remuestrear
 const F_MIN = 0.7, F_MAX = 3.0;        // 42-180 lpm
+const F_GUARDA = 0.45;                 // el espectro se mira desde aquí para detectar movimiento lento (HIPÓTESIS)
 const VENTANA_S = 12, MIN_S = 8;       // ventana de análisis y mínimo para dar el primer valor
 const PASO_MS = 1000;                  // una estimación por segundo
 const CALIDAD_MIN = 0.5;               // por debajo no se muestra el valor (HIPÓTESIS)
@@ -55,6 +56,7 @@ export async function iniciarPulso(videoEl, onResultado, opciones = {}) {
       let r = 0, g = 0, b = 0; const n = d.length / 4;
       for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; }
       s.t.push(performance.now()); s.r.push(r / n); s.g.push(g / n); s.b.push(b / n);
+      if (s.op.onMuestra) s.op.onMuestra(s.t[s.t.length - 1], r / n, g / n, b / n);   // señal en bruto (solo para ajustar)
       const limite = performance.now() - (s.op.ventana_s || VENTANA_S) * 1000 - 500;   // conservar solo la ventana
       while (s.t.length && s.t[0] < limite) { s.t.shift(); s.r.shift(); s.g.shift(); s.b.shift(); }
     }
@@ -70,11 +72,12 @@ export async function iniciarPulso(videoEl, onResultado, opciones = {}) {
   s.timer = setInterval(() => {
     if (!s.activo) return;
     const res = estimarPulso(s.t, s.r, s.g, s.b, { metodo: s.op.metodo, ventana_s: s.op.ventana_s });
-    // Estabilidad: las 3 últimas estimaciones deben parecerse (±6 lpm), si no se penaliza la calidad (HIPÓTESIS)
-    if (res.bpm_bruto != null) { s.ultimos.push(res.bpm_bruto); if (s.ultimos.length > 3) s.ultimos.shift(); }
-    const estable = s.ultimos.length === 3 && Math.max(...s.ultimos) - Math.min(...s.ultimos) <= 6;
+    // Estabilidad: las 5 últimas estimaciones deben parecerse (±5 lpm); si no, no se muestra (HIPÓTESIS)
+    s.ultimos.push(res.bpm_bruto); if (s.ultimos.length > 5) s.ultimos.shift();
+    const validos = s.ultimos.filter(v => v != null);
+    const estable = validos.length === 5 && Math.max(...validos) - Math.min(...validos) <= 10;
     let calidad = res.calidad;
-    if (res.bpm_bruto != null && !estable) calidad *= 0.6;
+    if (res.bpm_bruto != null && !estable) calidad = Math.min(calidad, 0.4);
     calidad = Math.round(calidad * 100) / 100;
     const min = s.op.calidad_min ?? CALIDAD_MIN;
     const ok = res.bpm_bruto != null && calidad >= min;
@@ -89,6 +92,7 @@ export async function iniciarPulso(videoEl, onResultado, opciones = {}) {
         calidad, region_cuerpo: 'corazon',
       } : null,
       progreso: res.progreso, fps: res.fps, luz: res.luz, senal: res.senal,
+      amplitud_pct: res.amplitud_pct ?? null, rg: res.rg ?? null, bg: res.bg ?? null,   // diagnóstico
     });
   }, PASO_MS);
 }
@@ -151,30 +155,41 @@ export function estimarPulso(t_ms, r, g, b, { metodo = 'verde', ventana_s = VENT
   let acc = 0; const pre = new Float64Array(N + 1);
   for (let k = 0; k < N; k++) { acc += x[k]; pre[k + 1] = acc; }
   for (let k = 0; k < N; k++) { const a = Math.max(0, k - h), c = Math.min(N, k + h + 1); y[k] = x[k] - (pre[c] - pre[a]) / (c - a); }
-  let f = biquad(biquad(y, FS, 'pasoalto', F_MIN), FS, 'pasobajo', F_MAX);
+  let f = biquad(biquad(biquad(y, FS, 'pasoalto', F_MIN), FS, 'pasoalto', F_MIN), FS, 'pasobajo', F_MAX);   // paso alto de 4.º orden
   f = f.subarray(FS);                              // descartar 1 s de transitorio del filtro
   const M = f.length;
 
-  // 4) Espectro (ventana de Hann) entre 0,7 y 3 Hz, en pasos de 0,5 lpm
-  const df = 1 / 120; const nf = Math.round((F_MAX - F_MIN) / df) + 1;
-  const P = new Float64Array(nf); let total = 0, kMax = 0;
+  // 4) Espectro (ventana de Hann) en pasos de 0,5 lpm. Se calcula desde 0,45 Hz: si lo más fuerte está por
+  //    debajo de la banda del pulso, es movimiento o un cambio lento de luz, no pulso.
+  const df = 1 / 120; const nf = Math.round((F_MAX - F_GUARDA) / df) + 1;
+  const q0 = Math.round((F_MIN - F_GUARDA) / df);          // primer índice dentro de la banda del pulso
+  const P = new Float64Array(nf); let total = 0, kMax = q0, kGlobal = 0;
   for (let q = 0; q < nf; q++) {
-    const w = 2 * Math.PI * (F_MIN + q * df) / FS; let re = 0, im = 0;
+    const w = 2 * Math.PI * (F_GUARDA + q * df) / FS; let re = 0, im = 0;
     for (let k = 0; k < M; k++) { const v = f[k] * (0.5 - 0.5 * Math.cos(2 * Math.PI * k / (M - 1))); re += v * Math.cos(w * k); im -= v * Math.sin(w * k); }
-    P[q] = re * re + im * im; total += P[q]; if (P[q] > P[kMax]) kMax = q;
+    P[q] = re * re + im * im; total += P[q];
+    if (P[q] > P[kGlobal]) kGlobal = q;
+    if (q >= q0 && P[q] > P[kMax]) kMax = q;
   }
-  const fPico = F_MIN + kMax * df;
+  const fPico = F_GUARDA + kMax * df;
 
-  // 5) Calidad: potencia a ±0,2 Hz del pico frente a toda la banda. Ruido blanco ≈ 0,17; senoide limpia ≈ 0,95
+  // 5) Calidad: potencia a ±0,2 Hz del pico frente a todo el espectro calculado. Ruido ≈ 0,15; senoide limpia ≈ 0,95
   const ancho = Math.round(0.2 / df); let pico = 0;
   for (let q = Math.max(0, kMax - ancho); q <= Math.min(nf - 1, kMax + ancho); q++) pico += P[q];
   const fraccion = total > 0 ? pico / total : 0;
   let calidad = Math.max(0, Math.min(1, (fraccion - 0.30) / (0.75 - 0.30)));    // HIPÓTESIS
-  if (kMax === 0 || kMax === nf - 1) calidad = 0;                               // pico en el borde de la banda: no fiable
+  let motivo = null;
+  // El pico debe ser un máximo de verdad dentro de la banda: ni en el borde, ni la cola de algo más lento
+  const esMaximoLocal = kMax > q0 && kMax < nf - 1 && P[kMax] >= P[kMax - 1] && P[kMax] >= P[kMax + 1];
+  if (kGlobal < q0 || !esMaximoLocal || P[q0] > 0.5 * P[kMax]) { calidad = 0; motivo = 'movimiento'; }
+
+  // Diagnóstico: amplitud de la señal filtrada (% del nivel medio) y proporciones de color de la zona
+  const amplitud_pct = Math.round(desv(f) * 10000) / 100;
+  const rg = Math.round(mR / mG * 100) / 100, bg = Math.round(mB / mG * 100) / 100;
 
   const paso = Math.max(1, Math.floor(M / 150));
   const senal = []; for (let k = 0; k < M; k += paso) senal.push(f[k]);         // para dibujar la onda
-  return { bpm_bruto: fPico * 60, calidad, fraccion_pico: Math.round(fraccion * 100) / 100, motivo: null, ...base, progreso: 1, senal };
+  return { bpm_bruto: fPico * 60, calidad, fraccion_pico: Math.round(fraccion * 100) / 100, motivo, ...base, progreso: 1, senal, amplitud_pct, rg, bg };
 }
 
 // --- utilidades ---------------------------------------------------------------

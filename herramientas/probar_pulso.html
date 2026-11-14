@@ -26,7 +26,7 @@
 <h3>Registro automático (una fila por segundo)</h3>
 <p><small>Escribe qué estás haciendo en «Etiqueta» (reposo, cuenta_manual_72, tras_sentadillas, papel_en_el_ovalo…) y cámbiala cuando cambies de prueba. Al acabar, descarga el registro.</small></p>
 <label>Etiqueta <input id="etiqueta" value="reposo" size="24"></label>
-<button id="reg">⬇ Descargar registro</button><button id="regBorrar">Vaciar registro</button> <span id="regN"><small>0 filas</small></span>
+<button id="reg">⬇ Descargar registro</button><button id="bruto">⬇ Descargar señal en bruto</button><button id="regBorrar">Vaciar registro</button> <span id="regN"><small>0 filas</small></span>
 
 <h3>Validación (para Miguel)</h3>
 <p><small>Con el pulso estable, mira el pulsioxímetro, escribe su valor y pulsa «Guardar medida». Se guarda siempre la estimación de la cámara, aunque la app no la muestre por baja calidad.</small></p>
@@ -43,8 +43,8 @@
 import { iniciarPulso, detenerPulso } from '../src/sensores/rppg.js';
 const $ = (id) => document.getElementById(id);
 const MOTIVOS = { reuniendo_datos: 'reuniendo datos…', poca_luz: 'poca luz', imagen_saturada: 'demasiada luz (imagen quemada)',
-  pocos_fotogramas: 'la cámara va muy lenta', senal_debil: 'señal débil: más luz de frente y quieto', inestable: 'valor inestable: no te muevas' };
-let ultimo = null; const REG = []; let t0 = null;
+  pocos_fotogramas: 'la cámara va muy lenta', movimiento: 'movimiento o cambio de luz: quédate quieto', senal_debil: 'señal débil: más luz de frente y quieto', inestable: 'valor inestable: no te muevas' };
+let ultimo = null; const REG = [], BRUTO = []; let t0 = null;
 const leer = () => { try { return JSON.parse(localStorage.getItem('validacion_pulso') || '[]'); } catch { return []; } };
 const escribir = (v) => { try { localStorage.setItem('validacion_pulso', JSON.stringify(v)); } catch {} };
 
@@ -59,7 +59,7 @@ function alResultado(r) {
   ultimo = r; $('guardar').disabled = r.bpm_bruto == null;
   if (t0 == null) t0 = performance.now();
   REG.push([new Date().toISOString().slice(11, 19), Math.round((performance.now() - t0) / 1000), $('etiqueta').value.replace(/,/g, ' '), $('metodo').value,
-    r.estado, r.bpm ?? '', r.bpm_bruto ?? '', r.calidad, r.motivo ?? '', r.fps, r.luz ?? '']);
+    r.estado, r.bpm ?? '', r.bpm_bruto ?? '', r.calidad, r.motivo ?? '', r.fps, r.luz ?? '', r.amplitud_pct ?? '', r.rg ?? '', r.bg ?? '']);
   $('regN').firstChild.textContent = `${REG.length} filas`;
   $('bpm').textContent = r.bpm != null ? `${r.bpm} lpm` : '—';
   $('bpm').style.color = r.bpm != null ? '#111' : '#999';
@@ -69,7 +69,8 @@ function alResultado(r) {
   onda(r.senal);
 }
 $('ini').onclick = async () => {
-  try { await iniciarPulso($('v'), alResultado, { metodo: $('metodo').value, tripulante: 'CM-2' }); $('ini').disabled = true; $('fin').disabled = false; }
+  try { await iniciarPulso($('v'), alResultado, { metodo: $('metodo').value, tripulante: 'CM-2',
+      onMuestra: (t, r, g, b) => { if (BRUTO.length < 60000) BRUTO.push(`${t.toFixed(1)},${r.toFixed(3)},${g.toFixed(3)},${b.toFixed(3)},${$('etiqueta').value.replace(/,/g, ' ')}`); } }); $('ini').disabled = true; $('fin').disabled = false; }
   catch (e) { $('info').firstChild.textContent = 'No se pudo abrir la cámara: ' + e.message; }
 };
 $('fin').onclick = () => { detenerPulso(); $('ini').disabled = false; $('fin').disabled = true; $('guardar').disabled = true; };
@@ -98,11 +99,15 @@ $('csv').onclick = () => {
   a.download = `validacion_pulso_${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')}.csv`; a.click();
 };
 $('reg').onclick = () => {
-  const txt = ['hora,t_s,etiqueta,metodo,estado,bpm_mostrado,bpm_bruto,calidad,motivo,fps,luz', ...REG.map(f => f.join(','))].join('\n');
+  const txt = ['hora,t_s,etiqueta,metodo,estado,bpm_mostrado,bpm_bruto,calidad,motivo,fps,luz,amplitud_pct,rg,bg', ...REG.map(f => f.join(','))].join('\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'text/csv' }));
   a.download = `registro_pulso_${new Date().toISOString().slice(11, 19).replace(/:/g, '')}.csv`; a.click();
 };
-$('regBorrar').onclick = () => { REG.length = 0; t0 = null; $('regN').firstChild.textContent = '0 filas'; };
+$('bruto').onclick = () => {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['t_ms,r,g,b,etiqueta\n' + BRUTO.join('\n')], { type: 'text/csv' }));
+  a.download = `bruto_pulso_${new Date().toISOString().slice(11, 19).replace(/:/g, '')}.csv`; a.click();
+};
+$('regBorrar').onclick = () => { BRUTO.length = 0; REG.length = 0; t0 = null; $('regN').firstChild.textContent = '0 filas'; };
 $('borrar').onclick = () => { if (leer().length === 0 || confirm('¿Borrar todas las medidas guardadas en este navegador?')) { escribir([]); pintar(); } };
 pintar();
 </script>
