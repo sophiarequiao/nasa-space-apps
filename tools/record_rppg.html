@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pulse recorder (raw data for tuning) · SOSpesAI</title>
+<!-- Tuning tool, not part of the app. Records the mean colour of three skin zones (forehead and both cheeks, no eyes, no mouth)
+     and the position of the face for every video frame, during three guided minutes: still, talking, small movements.
+     The video is never stored: only numbers go into the CSV. Drafted with AI assistance (Claude, Anthropic). MIT licence. -->
+<style>
+  body{font:16px/1.5 "Segoe UI",system-ui,sans-serif;max-width:860px;margin:auto;padding:1rem;background:#EEF1F4;color:#10202E}
+  button,input{font:inherit;padding:.5rem .9rem} input[type=number]{width:6rem}
+  #box{position:relative;width:480px;max-width:100%;background:#10202E;border-radius:6px;overflow:hidden}
+  video{width:100%;display:block;transform:scaleX(-1)}
+  .z{position:absolute;border:2px solid #7FE0B0;border-radius:4px;display:none;pointer-events:none}
+  #big{font:600 1.6rem/1.25 Bahnschrift,"Segoe UI",sans-serif;margin:1rem 0 .2rem;min-height:4rem}
+  #count{font:600 3rem/1 Bahnschrift,"Segoe UI",sans-serif}
+  .fine{color:#566676;font-size:.9rem}
+  ol{padding-left:1.2rem} li{margin:.3rem 0}
+</style>
+<body>
+<h1>Pulse recorder</h1>
+<ol>
+  <li>Count your pulse at the wrist for 30 seconds, multiply by 2 and type it here:
+    <label>before <input id="refBefore" type="number" min="30" max="200"> bpm</label></li>
+  <li>Press <b>Start</b> and follow the big text for 3 minutes. Front light, face centred.</li>
+  <li>When it ends, count your pulse again and type it: <label>after <input id="refAfter" type="number" min="30" max="200"> bpm</label></li>
+  <li>Press <b>Download</b>.</li>
+</ol>
+<p><button id="start">▶ Start (3 minutes)</button> <button id="dl" disabled>⬇ Download</button></p>
+<div id="box"><video id="v" playsinline muted></video><div class="z" id="zf"></div><div class="z" id="zl"></div><div class="z" id="zr"></div></div>
+<p id="big">Ready.</p><p id="count"></p>
+<p id="info" class="fine"></p>
+
+<script type="module">
+import { startFace, stopFace } from '../src/sensors/face.js';
+const $ = (id) => document.getElementById(id);
+const SEG = [
+  { id: 'still', s: 60, text: 'Stay still and silent. Look at the camera.' },
+  { id: 'talk',  s: 60, text: 'Talk normally: how you slept, what you ate, what is planned today.' },
+  { id: 'move',  s: 60, text: 'Silent, small natural movements: nod a little, shift in the chair, look slightly left and right.' },
+];
+// Zones as fractions of the face box (x0..x1 across, y0..y1 from the top of the forehead to the chin). 'old' is the zone used so far.
+const ZONES = { f: [0.28, 0.72, 0.06, 0.22], l: [0.14, 0.38, 0.50, 0.70], r: [0.62, 0.86, 0.50, 0.70], o: [0.20, 0.80, 0.08, 0.68] };
+const cv = document.createElement('canvas'); cv.width = 16; cv.height = 12; const ctx = cv.getContext('2d', { willReadFrequently: true });
+const ROWS = []; let seg = null, cam = null, found = 0, frames = 0;
+
+function mean(v, bx, z) {
+  const W = v.videoWidth, H = v.videoHeight, bw = bx.x1 - bx.x0, bh = bx.y1 - bx.y0;
+  const x = Math.max(0, bx.x0 + z[0] * bw) * W, y = Math.max(0, bx.y0 + z[2] * bh) * H;
+  const w = Math.max(2, (z[1] - z[0]) * bw * W), h = Math.max(2, (z[3] - z[2]) * bh * H);
+  ctx.drawImage(v, x, y, Math.min(w, W - x), Math.min(h, H - y), 0, 0, cv.width, cv.height);
+  const d = ctx.getImageData(0, 0, cv.width, cv.height).data; let r = 0, g = 0, b = 0; const n = d.length / 4;
+  for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; }
+  return [(r / n).toFixed(3), (g / n).toFixed(3), (b / n).toFixed(3)];
+}
+function place(el, bx, z) {   // the video is mirrored on screen
+  const bw = bx.x1 - bx.x0, bh = bx.y1 - bx.y0, s = el.style;
+  s.display = 'block'; s.left = `${(1 - (bx.x0 + z[1] * bw)) * 100}%`; s.top = `${(bx.y0 + z[2] * bh) * 100}%`; s.width = `${(z[1] - z[0]) * bw * 100}%`; s.height = `${(z[3] - z[2]) * bh * 100}%`;
+}
+function onFrame(f) {
+  if (!seg) return;
+  frames++;
+  if (!f.found) { ROWS.push([f.t.toFixed(1), seg, 0]); return; }
+  found++;
+  const v = $('v'), bx = f.box;
+  place($('zf'), bx, ZONES.f); place($('zl'), bx, ZONES.l); place($('zr'), bx, ZONES.r);
+  ROWS.push([f.t.toFixed(1), seg, 1, ((bx.x0 + bx.x1) / 2).toFixed(5), ((bx.y0 + bx.y1) / 2).toFixed(5), (bx.x1 - bx.x0).toFixed(5), (bx.y1 - bx.y0).toFixed(5),
+    f.blink.toFixed(3), f.jaw.toFixed(3), ...mean(v, bx, ZONES.f), ...mean(v, bx, ZONES.l), ...mean(v, bx, ZONES.r), ...mean(v, bx, ZONES.o)]);
+}
+const wait = (ms) => new Promise(r => setTimeout(r, ms));
+
+$('start').onclick = async () => {
+  $('start').disabled = true; ROWS.length = 0; found = frames = 0;
+  try {
+    cam = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } }, audio: false });
+    $('v').srcObject = cam; await $('v').play();
+    $('big').textContent = 'Loading the face model…';
+    let ready; const first = new Promise(r => ready = r);
+    await startFace($('v'), () => {}, { onFrame: (f) => { if (f.found) ready(); onFrame(f); } });
+    await Promise.race([first, wait(15000)]);
+  } catch (e) { $('big').textContent = 'Could not start: ' + e.message; $('start').disabled = false; return; }
+  for (const s of SEG) {
+    $('big').textContent = s.text; seg = s.id;
+    for (let k = s.s; k > 0; k--) { $('count').textContent = k; $('info').textContent = `${ROWS.length} frames, face found in ${frames ? Math.round(100 * found / frames) : 0} %`; await wait(1000); }
+  }
+  seg = null; stopFace(); cam.getTracks().forEach(t => t.stop()); $('v').srcObject = null;
+  for (const id of ['zf', 'zl', 'zr']) $(id).style.display = 'none';
+  $('count').textContent = ''; $('big').textContent = 'Done. Count your pulse again, type it in “after” and press Download.';
+  $('dl').disabled = false; $('start').disabled = false;
+};
+$('dl').onclick = () => {
+  const head = 't_ms,segment,found,cx,cy,bw,bh,blink,jaw,fr,fg,fb,lr,lg,lb,rr,rg,rb,or,og,ob';
+  const meta = `# ref_before_bpm=${$('refBefore').value || ''},ref_after_bpm=${$('refAfter').value || ''},frames=${ROWS.length}`;
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([[meta, head, ...ROWS.map(r => r.join(','))].join('\n')], { type: 'text/csv' }));
+  a.download = `rppg_raw_${new Date().toISOString().slice(11, 19).replace(/:/g, '')}.csv`; a.click();
+};
+</script>
+</body></html>

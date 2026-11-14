@@ -8,7 +8,9 @@
 //     yawns (count)             mouth wide open for more than 1 s
 //     roi: face zone (forehead and cheeks) as fractions of the frame; pass it to rppg.js with setPulseRoi()
 //     observations: app-format objects once the window is long enough
-//   options: { crew, window_s (default 60), modelUrl, wasmUrl }
+//   options: { crew, window_s (default 60), modelUrl, wasmUrl, onFrame }
+//     onFrame({ t, found, box, blink, jaw, roi }): called for every video frame with the face box (fractions of the frame).
+//     It lets rppg.js follow the face frame by frame and skip the eyes and the mouth.
 // What it is: a screening signal of eyelid behaviour compared with the person's own baseline. It is NOT a diagnosis
 // and cannot tell pain, illness or stress from a face. All thresholds are ASSUMPTIONS to be tuned with real data.
 // Real test (one person, 3 min): blink rate 8/min at rest and 19/min blinking on purpose; PERCLOS 1 % at rest and
@@ -123,7 +125,8 @@ export async function startFace(videoEl, onResult, options = {}) {
         const bw = x1 - x0, bh = y1 - y0;
         const r = { x: x0 + 0.2 * bw, y: y0 + 0.08 * bh, w: 0.6 * bw, h: 0.6 * bh };
         s.roi = s.roi ? { x: s.roi.x + 0.2 * (r.x - s.roi.x), y: s.roi.y + 0.2 * (r.y - s.roi.y), w: s.roi.w + 0.2 * (r.w - s.roi.w), h: s.roi.h + 0.2 * (r.h - s.roi.h) } : r;
-      }
+        if (s.op.onFrame) s.op.onFrame({ t: now, found: true, box: { x0, y0, x1, y1 }, blink, jaw: score(cats, 'jawOpen'), roi: s.roi });
+      } else if (s.op.onFrame) s.op.onFrame({ t: now, found: false });
     }
     s.frameId = s.video.requestVideoFrameCallback ? s.video.requestVideoFrameCallback(frame) : requestAnimationFrame(frame);
   };
