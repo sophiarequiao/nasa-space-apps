@@ -42,7 +42,8 @@ function mediaDesdeCal() {
     if (v.length < 3) continue;
     const mu = v.reduce((a, b) => a + b, 0) / v.length;
     const sd = Math.sqrt(v.reduce((a, b) => a + (b - mu) ** 2, 0) / (v.length - 1));
-    m[s] = { media: +mu.toFixed(2), desv: +Math.max(sd, 0.01).toFixed(3), n: v.length };
+    // Con solo 3 mensajes la desviación sale demasiado pequeña: mínimo del 5 % de la media (HIPÓTESIS)
+    m[s] = { media: +mu.toFixed(2), desv: +Math.max(sd, 0.05 * Math.abs(mu), 0.01).toFixed(3), n: v.length };
   }
   return m;
 }
