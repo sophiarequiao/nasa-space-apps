@@ -1,0 +1,245 @@
+{
+ "_about": "Biblioteca de escenarios de SOSpesAI. Valores clínicos pendientes de validar por la persona de salud. Generado con ayuda de IA (Claude, Anthropic). Licencia CC0.",
+ "escenarios": [
+  {
+   "id": "colico_renal",
+   "nombre": "Cólico renal",
+   "categoria": "médico agudo",
+   "perfiles": "todos",
+   "disparador": "Dolor de costado, sangre en la tira de orina",
+   "senales": "dolor, tira de orina, ecografía, pulso",
+   "que_hace_la_app": "Protocolo + inventario (falta la tira de orina) + dial; en Marte, ecografía sin guía en directo",
+   "base": "IMM Marte: litiasis entre las principales causas de evacuación [F]"
+  },
+  {
+   "id": "sepsis",
+   "nombre": "Sospecha de sepsis",
+   "categoria": "médico agudo",
+   "perfiles": "todos",
+   "disparador": "Fiebre, taquicardia, tensión baja, leucocitos altos",
+   "senales": "temperatura, pulso, tensión, HemoCue, Bio-Analyzer",
+   "que_hace_la_app": "Monitorización intensiva cada 15 min; antibiótico del protocolo; dial (T_crit 1 h)",
+   "base": "IMM Marte: sepsis, principal causa de muerte modelada [F]"
+  },
+  {
+   "id": "apendicitis",
+   "nombre": "Sospecha de apendicitis",
+   "categoria": "médico agudo",
+   "perfiles": "todos",
+   "disparador": "Dolor abdominal progresivo, fiebre",
+   "senales": "dolor, temperatura, ecografía, laboratorio",
+   "que_hace_la_app": "Sin cirugía a bordo: protocolo de antibióticos, evaluación de evacuación según el perfil",
+   "base": "IMM Marte; caso más común que amenaza la patrulla en submarinos Vanguard [F]"
+  },
+  {
+   "id": "quemadura_ocular",
+   "nombre": "Quemadura química en el ojo",
+   "categoria": "trauma / accidente",
+   "perfiles": "todos",
+   "disparador": "Salpicadura de producto químico",
+   "senales": "síntomas, foto del ojo",
+   "que_hace_la_app": "Acción inmediata (lavado) sin esperar a nadie: el dial siempre marca TRIPULACIÓN",
+   "base": "IMM Marte: principal causa de evacuación [F]"
+  },
+  {
+   "id": "traumatismo",
+   "nombre": "Traumatismo (caída, golpe, fractura)",
+   "categoria": "trauma / accidente",
+   "perfiles": "superficie lunar, superficie de Marte, órbita",
+   "disparador": "Caída en EVA o en el hábitat",
+   "senales": "dolor, foto, ecografía",
+   "que_hace_la_app": "Inmovilización con lo que hay en el inventario; capacidad perdida si falta férula",
+   "base": "IMPACT, misión lunar larga: trauma entre los mayores riesgos [F]"
+  },
+  {
+   "id": "descompresion",
+   "nombre": "Enfermedad descompresiva tras un paseo espacial",
+   "categoria": "operacional",
+   "perfiles": "superficie lunar, órbita, superficie de Marte",
+   "disparador": "Dolor articular o síntomas neurológicos tras EVA",
+   "senales": "síntomas, constantes, registro de EVA",
+   "que_hace_la_app": "Monitorización intensiva tras cada EVA; protocolo de recompresión si existe",
+   "base": "IMPACT, misión lunar larga: principal contribuyente al riesgo [F]"
+  },
+  {
+   "id": "insuficiencia_respiratoria",
+   "nombre": "Insuficiencia respiratoria",
+   "categoria": "médico agudo",
+   "perfiles": "todos",
+   "disparador": "Respiración rápida, SpO2 bajando",
+   "senales": "SpO2, respiración, CO2 de cabina",
+   "que_hace_la_app": "Oxígeno del inventario; vigilancia continua",
+   "base": "IMPACT, misión lunar larga [F]"
+  },
+  {
+   "id": "humo_incendio",
+   "nombre": "Inhalación de humo (incendio a bordo)",
+   "categoria": "entorno",
+   "perfiles": "todos",
+   "disparador": "Alarma de humo, tos",
+   "senales": "SpO2, respiración, sensores de cabina",
+   "que_hace_la_app": "Varios afectados a la vez; oxígeno y triaje",
+   "base": "IMM Marte: inhalación de humo entre las causas de muerte modeladas [F]"
+  },
+  {
+   "id": "co2_alto",
+   "nombre": "CO2 de cabina alto",
+   "categoria": "entorno",
+   "perfiles": "todos",
+   "disparador": "Fallo del sistema de CO2; cefaleas en la tripulación",
+   "senales": "CO2, cefaleas, test de reacción",
+   "que_hace_la_app": "Relaciona síntomas de toda la tripulación con el entorno; no lo trata como problema individual",
+   "base": "Síntomas desde 2,3 mmHg; límite ISS 3,0 mmHg [F]"
+  },
+  {
+   "id": "tormenta_solar",
+   "nombre": "Tormenta solar (evento de partículas)",
+   "categoria": "radiación",
+   "perfiles": "viaje lunar, superficie lunar, viaje a Marte, superficie de Marte",
+   "disparador": "Alerta de clima espacial",
+   "senales": "dosímetros, dosis acumulada",
+   "que_hace_la_app": "Aviso de refugio; dosis del evento frente al límite de 250 mSv por evento",
+   "base": "NASA-STD-3001 [F]"
+  },
+  {
+   "id": "dosis_acumulada",
+   "nombre": "Presupuesto de dosis de radiación",
+   "categoria": "radiación",
+   "perfiles": "viaje a Marte, superficie de Marte",
+   "disparador": "La dosis acumulada se acerca al límite de carrera",
+   "senales": "dosímetros",
+   "que_hace_la_app": "Proyección hasta el final de la misión frente a 600 mSv",
+   "base": "NASA-STD-3001; 1,8 mSv/día en tránsito a Marte [F]"
+  },
+  {
+   "id": "sans",
+   "nombre": "Cambios en el ojo (SANS) sin síntomas",
+   "categoria": "silencioso",
+   "perfiles": "órbita, viaje a Marte, Luna (larga)",
+   "disparador": "Toca la OCT y no se ha hecho",
+   "senales": "OCT, fondo de ojo, visión",
+   "que_hace_la_app": "Zona gris en el cuerpo 3D; se adelanta la OCT si viene un corte",
+   "base": "9 de 13 tripulantes con edema de papila el día 150 [F]"
+  },
+  {
+   "id": "trombosis_yugular",
+   "nombre": "Trombosis en la yugular sin síntomas",
+   "categoria": "silencioso",
+   "perfiles": "órbita, viaje a Marte",
+   "disparador": "Ecografía programada muestra flujo anómalo",
+   "senales": "ecografía",
+   "que_hace_la_app": "Decisión de anticoagulación con el inventario y el dial",
+   "base": "6 de 11 tripulantes con flujo anómalo, 1 trombo [F]"
+  },
+  {
+   "id": "perdida_osea",
+   "nombre": "Pérdida ósea progresiva",
+   "categoria": "silencioso / lento",
+   "perfiles": "misiones largas",
+   "disparador": "Tendencia de semanas",
+   "senales": "ejercicio, DXA antes y después",
+   "que_hace_la_app": "Evolución y proyección; refuerzo del ejercicio",
+   "base": "1-1,5 % al mes [F]"
+  },
+  {
+   "id": "fatiga_sueno",
+   "nombre": "Falta de sueño y fatiga acumulada",
+   "categoria": "conductual",
+   "perfiles": "todos",
+   "disparador": "Varias noches cortas",
+   "senales": "actígrafo, voz, test de reacción",
+   "que_hace_la_app": "Nivel intensivo; discordancia si el autoinforme dice «bien»",
+   "base": "Unas 6 h de sueño de media en la ISS [F]"
+  },
+  {
+   "id": "salud_mental",
+   "nombre": "Ánimo bajo, desconexión de la Tierra",
+   "categoria": "conductual",
+   "perfiles": "misiones largas, aislamiento",
+   "disparador": "La voz y el volumen de mensajes bajan durante semanas",
+   "senales": "voz, duración de mensajes, ánimo",
+   "que_hace_la_app": "Tendencia + aviso discreto + conferencia privada; nunca sin permiso",
+   "base": "Desconexión observada en Mars-500 y SIRIUS-19 [F]"
+  },
+  {
+   "id": "herpes_zoster",
+   "nombre": "Reactivación de virus (herpes zóster)",
+   "categoria": "inmune",
+   "perfiles": "misiones largas",
+   "disparador": "Erupción con dolor",
+   "senales": "foto, dolor",
+   "que_hace_la_app": "Tiempo límite para antivirales (72 h); inventario",
+   "base": "Reactivación en el 61 % de los tripulantes de la ISS [F]"
+  },
+  {
+   "id": "cmo_paciente",
+   "nombre": "El oficial médico es el paciente",
+   "categoria": "operacional",
+   "perfiles": "todos",
+   "disparador": "El CMO cae enfermo",
+   "senales": "—",
+   "que_hace_la_app": "La app guía a otro tripulante paso a paso, con lenguaje sencillo",
+   "base": "Formación CMO de unas 15 h [F]"
+  },
+  {
+   "id": "varios_afectados",
+   "nombre": "Varios afectados a la vez",
+   "categoria": "operacional",
+   "perfiles": "todos",
+   "disparador": "Incendio, intoxicación, accidente",
+   "senales": "constantes de todos",
+   "que_hace_la_app": "Triaje de la tripulación y reparto de recursos limitados",
+   "base": "Supuesto del equipo"
+  },
+  {
+   "id": "equipo_averiado",
+   "nombre": "Un equipo médico se avería",
+   "categoria": "recursos",
+   "perfiles": "todos",
+   "disparador": "Fallo del ecógrafo o del HemoCue",
+   "senales": "estado de equipos",
+   "que_hace_la_app": "«¿Qué perdemos si...?»: condiciones que pierden su prueba o su tratamiento",
+   "base": "Supuesto del equipo"
+  },
+  {
+   "id": "farmaco_agotado",
+   "nombre": "Un fármaco se agota o se degrada",
+   "categoria": "recursos",
+   "perfiles": "misiones largas sin reposición",
+   "disparador": "Stock bajo o caducidad efectiva superada",
+   "senales": "inventario",
+   "que_hace_la_app": "Alternativas del protocolo; capacidades en riesgo",
+   "base": "Fármacos fallaron antes de caducar tras 28 meses en la ISS [F]"
+  },
+  {
+   "id": "sin_enlace",
+   "nombre": "Incidencia durante un corte de comunicaciones",
+   "categoria": "comunicaciones",
+   "perfiles": "superficie lunar sin relé, viaje a Marte (conjunción)",
+   "disparador": "Cualquier incidencia sin enlace",
+   "senales": "todas",
+   "que_hace_la_app": "Dial en TRIPULACIÓN; registro para enviar después",
+   "base": "17 días sin enlace en la conjunción de 2028 (tabla propia); visibilidad lunar de medio mes [F]"
+  },
+  {
+   "id": "retorno",
+   "nombre": "Vuelta a la gravedad",
+   "categoria": "post-vuelo",
+   "perfiles": "todos",
+   "disparador": "Aterrizaje o regreso",
+   "senales": "tensión al ponerse de pie, equilibrio, sueño",
+   "que_hace_la_app": "Seguimiento de la recuperación frente a la referencia previa",
+   "base": "Fase después del vuelo (sección 4.7)"
+  },
+  {
+   "id": "evacuacion",
+   "nombre": "Decisión de evacuación",
+   "categoria": "operacional",
+   "perfiles": "órbita baja, Luna",
+   "disparador": "Empeora pese al tratamiento",
+   "senales": "todas",
+   "que_hace_la_app": "Compara el tiempo de evacuación del perfil con el tiempo crítico",
+   "base": "Crew-11: primera evacuación médica de la ISS, enero de 2026 [S]"
+  }
+ ]
+}

@@ -1,0 +1,84 @@
+
+== ISS | luz ida: 0.00 min | espera de ventana: 0.0 d | tasa medica: 10000 kbps
+  eye_chemical_burn      T_crit      5 min | respuesta de Tierra:   15 min | A=   3.00 | CREW   | async_images
+  smoke_inhalation       T_crit      5 min | respuesta de Tierra:   15 min | A=   3.00 | CREW   | text
+  suspected_sepsis       T_crit     60 min | respuesta de Tierra:   15 min | A=   0.25 | SHARED | text
+  suspected_stroke       T_crit     60 min | respuesta de Tierra:   15 min | A=   0.25 | SHARED | live_video
+  appendicitis           T_crit    720 min | respuesta de Tierra:   15 min | A=   0.02 | EARTH  | live_video
+  renal_colic            T_crit    240 min | respuesta de Tierra:   15 min | A=   0.06 | EARTH  | live_video
+  urinary_retention_uti  T_crit    360 min | respuesta de Tierra:   15 min | A=   0.04 | EARTH  | async_images
+  skin_infection         T_crit   2880 min | respuesta de Tierra:   15 min | A=   0.01 | EARTH  | async_images
+  herpes_zoster          T_crit   4320 min | respuesta de Tierra:   15 min | A=   0.00 | EARTH  | async_images
+  jugular_vte            T_crit   1440 min | respuesta de Tierra:   15 min | A=   0.01 | EARTH  | live_video
+  sans                   T_crit  20160 min | respuesta de Tierra:   15 min | A=   0.00 | EARTH  | async_images
+  sleep_fatigue          T_crit  10080 min | respuesta de Tierra:   15 min | A=   0.00 | EARTH  | text
+
+== Luna polo sur, con rele | luz ida: 0.02 min | espera de ventana: 0.0 d | tasa medica: 5000 kbps
+  eye_chemical_burn      T_crit      5 min | respuesta de Tierra:   15 min | A=   3.01 | CREW   | async_images
+  smoke_inhalation       T_crit      5 min | respuesta de Tierra:   15 min | A=   3.01 | CREW   | text
+  suspected_sepsis       T_crit     60 min | respuesta de Tierra:   15 min | A=   0.25 | SHARED | text
+  suspected_stroke       T_crit     60 min | respuesta de Tierra:   15 min | A=   0.25 | SHARED | live_video
+  appendicitis           T_crit    720 min | respuesta de Tierra:   15 min | A=   0.02 | EARTH  | live_video
+  renal_colic            T_crit    240 min | respuesta de Tierra:   15 min | A=   0.06 | EARTH  | live_video
+  urinary_retention_uti  T_crit    360 min | respuesta de Tierra:   15 min | A=   0.04 | EARTH  | async_images
+  skin_infection         T_crit   2880 min | respuesta de Tierra:   15 min | A=   0.01 | EARTH  | async_images
+  herpes_zoster          T_crit   4320 min | respuesta de Tierra:   15 min | A=   0.00 | EARTH  | async_images
+  jugular_vte            T_crit   1440 min | respuesta de Tierra:   15 min | A=   0.01 | EARTH  | live_video
+  sans                   T_crit  20160 min | respuesta de Tierra:   15 min | A=   0.00 | EARTH  | async_images
+  sleep_fatigue          T_crit  10080 min | respuesta de Tierra:   15 min | A=   0.00 | EARTH  | text
+
+== Luna polo sur, sin rele, Tierra oculta (peor caso) | luz ida: 0.02 min | espera de ventana: 13.7 d | tasa medica: 5000 kbps
+  eye_chemical_burn      T_crit      5 min | respuesta de Tierra:   13.7 d | A=3937.09 | CREW   | async_images
+  smoke_inhalation       T_crit      5 min | respuesta de Tierra:   13.7 d | A=3937.09 | CREW   | text
+  suspected_sepsis       T_crit     60 min | respuesta de Tierra:   13.7 d | A= 328.09 | CREW   | text
+  suspected_stroke       T_crit     60 min | respuesta de Tierra:   13.7 d | A= 328.09 | CREW   | async_images (sin guia en directo)
+  appendicitis           T_crit    720 min | respuesta de Tierra:   13.7 d | A=  27.34 | CREW   | async_images (sin guia en directo)
+  renal_colic            T_crit    240 min | respuesta de Tierra:   13.7 d | A=  82.02 | CREW   | async_images (sin guia en directo)
+  urinary_retention_uti  T_crit    360 min | respuesta de Tierra:   13.7 d | A=  54.68 | CREW   | async_images
+  skin_infection         T_crit   2880 min | respuesta de Tierra:   13.7 d | A=   6.84 | CREW   | async_images
+  herpes_zoster          T_crit   4320 min | respuesta de Tierra:   13.7 d | A=   4.56 | CREW   | async_images
+  jugular_vte            T_crit   1440 min | respuesta de Tierra:   13.7 d | A=  13.67 | CREW   | async_images (sin guia en directo)
+  sans                   T_crit  20160 min | respuesta de Tierra:   13.7 d | A=   0.98 | SHARED | async_images
+  sleep_fatigue          T_crit  10080 min | respuesta de Tierra:   13.7 d | A=   1.95 | CREW   | text
+
+== Marte hoy (2026-11-14) | luz ida: 10.98 min | espera de ventana: 0.0 d | tasa medica: 246 kbps
+  eye_chemical_burn      T_crit      5 min | respuesta de Tierra:   37 min | A=   7.46 | CREW   | async_images
+  smoke_inhalation       T_crit      5 min | respuesta de Tierra:   37 min | A=   7.39 | CREW   | text
+  suspected_sepsis       T_crit     60 min | respuesta de Tierra:   37 min | A=   0.62 | SHARED | text
+  suspected_stroke       T_crit     60 min | respuesta de Tierra:   39 min | A=   0.65 | SHARED | async_images (sin guia en directo)
+  appendicitis           T_crit    720 min | respuesta de Tierra:   37 min | A=   0.05 | EARTH  | async_images (sin guia en directo)
+  renal_colic            T_crit    240 min | respuesta de Tierra:   37 min | A=   0.16 | EARTH  | async_images (sin guia en directo)
+  urinary_retention_uti  T_crit    360 min | respuesta de Tierra:   37 min | A=   0.10 | EARTH  | async_images
+  skin_infection         T_crit   2880 min | respuesta de Tierra:   37 min | A=   0.01 | EARTH  | async_images
+  herpes_zoster          T_crit   4320 min | respuesta de Tierra:   37 min | A=   0.01 | EARTH  | async_images
+  jugular_vte            T_crit   1440 min | respuesta de Tierra:   39 min | A=   0.03 | EARTH  | async_images (sin guia en directo)
+  sans                   T_crit  20160 min | respuesta de Tierra:   39 min | A=   0.00 | EARTH  | async_images
+  sleep_fatigue          T_crit  10080 min | respuesta de Tierra:   37 min | A=   0.00 | EARTH  | text
+
+== Marte lejos, con enlace (2034-09-03) | luz ida: 22.19 min | espera de ventana: 0.0 d | tasa medica: 60 kbps
+  eye_chemical_burn      T_crit      5 min | respuesta de Tierra:   61 min | A=  12.14 | CREW   | async_images
+  smoke_inhalation       T_crit      5 min | respuesta de Tierra:   59 min | A=  11.88 | CREW   | text
+  suspected_sepsis       T_crit     60 min | respuesta de Tierra:   59 min | A=   0.99 | SHARED | text
+  suspected_stroke       T_crit     60 min | respuesta de Tierra:   68 min | A=   1.14 | CREW   | async_images (sin guia en directo)
+  appendicitis           T_crit    720 min | respuesta de Tierra:   60 min | A=   0.08 | EARTH  | async_images (sin guia en directo)
+  renal_colic            T_crit    240 min | respuesta de Tierra:   61 min | A=   0.25 | SHARED | async_images (sin guia en directo)
+  urinary_retention_uti  T_crit    360 min | respuesta de Tierra:   60 min | A=   0.17 | EARTH  | async_images
+  skin_infection         T_crit   2880 min | respuesta de Tierra:   61 min | A=   0.02 | EARTH  | async_images
+  herpes_zoster          T_crit   4320 min | respuesta de Tierra:   61 min | A=   0.01 | EARTH  | async_images
+  jugular_vte            T_crit   1440 min | respuesta de Tierra:   68 min | A=   0.05 | EARTH  | async_images (sin guia en directo)
+  sans                   T_crit  20160 min | respuesta de Tierra:   67 min | A=   0.00 | EARTH  | async_images
+  sleep_fatigue          T_crit  10080 min | respuesta de Tierra:   60 min | A=   0.01 | EARTH  | text
+
+== Marte, primer dia de conjuncion solar (2028-03-13) | luz ida: 19.81 min | espera de ventana: 17.0 d | tasa medica: 75 kbps
+  eye_chemical_burn      T_crit      5 min | respuesta de Tierra:   17.0 d | A=4907.14 | CREW   | async_images
+  smoke_inhalation       T_crit      5 min | respuesta de Tierra:   17.0 d | A=4906.93 | CREW   | text
+  suspected_sepsis       T_crit     60 min | respuesta de Tierra:   17.0 d | A= 408.91 | CREW   | text
+  suspected_stroke       T_crit     60 min | respuesta de Tierra:   17.0 d | A= 409.03 | CREW   | async_images (sin guia en directo)
+  appendicitis           T_crit    720 min | respuesta de Tierra:   17.0 d | A=  34.08 | CREW   | async_images (sin guia en directo)
+  renal_colic            T_crit    240 min | respuesta de Tierra:   17.0 d | A= 102.23 | CREW   | async_images (sin guia en directo)
+  urinary_retention_uti  T_crit    360 min | respuesta de Tierra:   17.0 d | A=  68.15 | CREW   | async_images
+  skin_infection         T_crit   2880 min | respuesta de Tierra:   17.0 d | A=   8.52 | CREW   | async_images
+  herpes_zoster          T_crit   4320 min | respuesta de Tierra:   17.0 d | A=   5.68 | CREW   | async_images
+  jugular_vte            T_crit   1440 min | respuesta de Tierra:   17.0 d | A=  17.04 | CREW   | async_images (sin guia en directo)
+  sans                   T_crit  20160 min | respuesta de Tierra:   17.0 d | A=   1.22 | CREW   | async_images
+  sleep_fatigue          T_crit  10080 min | respuesta de Tierra:   17.0 d | A=   2.43 | CREW   | text
