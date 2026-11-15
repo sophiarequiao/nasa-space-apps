@@ -19,7 +19,7 @@ export function radiationFor(data: RadiationFile, profileId: string): RadiationI
   const limit = data.career_limit.mSv;
   const sources = [...env.sources, { short: data.career_limit.short, title: data.career_limit.title, url: data.career_limit.url }];
   const rate = env.rate_mSv_day;
-  if (!rate) return { kind: env.kind, rateMSvDay: null, daysToLimit: null, limitMSv: limit, text: env.note ?? "", sources };
+  if (!rate) return { kind: env.kind, rateMSvDay: null, daysToLimit: null, limitMSv: limit, text: env.note ?? "", short: env.short, sources };
   const same = rate[0] === rate[1];
   const days: [number, number] = [Math.round(limit / rate[1]), Math.round(limit / rate[0])];
   const text =

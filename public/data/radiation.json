@@ -45,7 +45,8 @@
      "title": "Simonsen, Zawaski and Weeks, NASA, 'Moon 2 Mars: Space Radiation Protection' (NTRS 20250006168)",
      "url": "https://ntrs.nasa.gov/api/citations/20250006168/downloads/ASCEND%20Simonsen%20draft%201.pdf"
     }
-   ]
+   ],
+   "short": "Under 20 to about 30 mSv for a 10 to 30 day trip."
   },
   "moon_surface": {
    "kind": "projected",
@@ -72,7 +73,8 @@
      "title": "Simonsen, Zawaski and Weeks, NASA, 'Moon 2 Mars: Space Radiation Protection' (NTRS 20250006168)",
      "url": "https://ntrs.nasa.gov/api/citations/20250006168/downloads/ASCEND%20Simonsen%20draft%201.pdf"
     }
-   ]
+   ],
+   "short": "Under 100 mSv in 6 months, about 350 in a year."
   },
   "deep_space": {
    "kind": "measured",

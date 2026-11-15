@@ -85,11 +85,13 @@ export function TodaySimple() {
         {rad && (
           <details className="glass g-fold">
             <summary>
-              <span className="g-title">Radiation on this mission</span>
-              <span className="g-count">{rad.rateMSvDay ? `${rad.rateMSvDay[0] === rad.rateMSvDay[1] ? rad.rateMSvDay[0] : `${rad.rateMSvDay[0]}-${rad.rateMSvDay[1]}`} mSv/day` : "NASA estimate"}</span>
+              <span className="g-title">Radiation</span>
+              <span className="g-count">{rad.rateMSvDay ? `${rad.rateMSvDay[0] === rad.rateMSvDay[1] ? rad.rateMSvDay[0] : `${rad.rateMSvDay[0]}-${rad.rateMSvDay[1]}`} mSv/day` : "estimate"}</span>
             </summary>
-            <p className="g-text">{rad.text.replace(/^Radiation: /, "")}</p>
-            <p className="g-small">Sources: {rad.sources.map((s, i) => <span key={s.url}>{i > 0 && "; "}<a href={s.url} target="_blank" rel="noopener" title={s.title}>{s.short}</a></span>)}. NASA averages for this mission, not your own dose.</p>
+            <p className="g-text">{rad.daysToLimit
+              ? `Career limit (${rad.limitMSv} mSv) in about ${rad.daysToLimit[0] === rad.daysToLimit[1] ? rad.daysToLimit[0] : `${rad.daysToLimit[0]}-${rad.daysToLimit[1]}`} days.`
+              : `${rad.short} Career limit: ${rad.limitMSv} mSv.`}</p>
+            <p className="g-small">NASA data for this mission · <a href={rad.sources[0].url} target="_blank" rel="noopener" title={rad.sources.map((x) => x.title).join("; ")}>source</a></p>
           </details>
         )}
 

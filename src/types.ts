@@ -178,6 +178,7 @@ export interface RadiationEnvironment {
   rate_mSv_day: [number, number] | null;
   where?: string;
   note?: string;
+  short?: string;
   mission_note?: string;
   sources: RadiationSource[];
 }
@@ -192,6 +193,7 @@ export interface RadiationInfo {
   daysToLimit: [number, number] | null;
   limitMSv: number;
   text: string;
+  short?: string;
   sources: RadiationSource[];
 }
 
