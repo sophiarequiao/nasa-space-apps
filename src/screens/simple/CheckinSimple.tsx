@@ -8,13 +8,19 @@ import { sealForEarth } from "../../engine/seal";
 import { labObservations, type LabObservation } from "../../sensors/lab";
 import { startCamera, stopCamera } from "../../sensors/camera";
 import { latestAt } from "../../engine/status";
+import { signalLabel } from "../../engine/signals";
 import type { Observation, RegionId } from "../../types";
 import { ReactionTest } from "../MessageScreen";
 
 const MAX_S = 30;
+/** Camera values shown after the message: [signal, label, unit] */
+const CAM_SHOWN: [string, string, string][] = [
+  ["heart_rate", "Pulse", "bpm"], ["blink_rate", "Blinks", "/min"], ["perclos", "Eyes closed", "%"],
+  ["head_movement", "Head movement", "%/s"], ["head_tilt", "Head tilt", "°"], ["posture_shifts", "Posture shifts", "/min"],
+];
 
 export function CheckinSimple() {
-  const { data, crewId, day, link, idx, addObservations, setScreen } = useApp();
+  const { data, crewId, day, link, idx, addObservations, setScreen, statusFor } = useApp();
   const [phase, setPhase] = useState<"idle" | "rec" | "done">("idle");
   const [secs, setSecs] = useState(0);
   const [level, setLevel] = useState(0);
@@ -27,6 +33,7 @@ export function CheckinSimple() {
   const [showTest, setShowTest] = useState(false);
   const [reaction, setReaction] = useState<{ lapses: number; meanMs: number; n: number } | null>(null);
   const [extra, setExtra] = useState({ sleep: "", mood: 0, pain: 0 });
+  const [saved, setSaved] = useState<Observation[] | null>(null);
   const [sent, setSent] = useState(false);
   const [sealed, setSealed] = useState(false);
   const [synthetic, setSynthetic] = useState(false);
@@ -46,7 +53,7 @@ export function CheckinSimple() {
   useEffect(() => () => { stopCamera(); cancelAnimationFrame(raf.current); window.clearInterval(timer.current); stream.current?.getTracks().forEach((t) => t.stop()); }, []);
 
   async function start() {
-    setError(null); setResult(null); setSent(false); setSealed(false); setSynthetic(false); setCamObs([]); setCamState("");
+    setError(null); setResult(null); setSaved(null); setSent(false); setSealed(false); setSynthetic(false); setCamObs([]); setCamState("");
     try {
       const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false } });
       stream.current = s;
@@ -83,20 +90,20 @@ export function CheckinSimple() {
     const sr = latestAt(idx.get(crewId)?.get("speech_rate"), day), pf = latestAt(idx.get(crewId)?.get("pause_fraction"), day);
     if (!sr || !pf) return;
     setResult(compareVoice({ durationS: 45, speakingTimeS: 35, speechRate: sr.value, pauseFraction: pf.value, f0MedianHz: null, f0VariabilitySt: null, snrDb: 30, quality: 0.9 }, mean));
-    setPhase("done"); setSynthetic(true); setSent(false); setSealed(false); setCamObs([]);
+    setPhase("done"); setSynthetic(true); setSaved(null); setSent(false); setSealed(false); setCamObs([]);
   }
 
   const slow = result?.comparisons.find((c) => c.signal === "speech_rate" && c.status === "amber");
   const pauses = result?.comparisons.find((c) => c.signal === "pause_fraction" && c.status === "amber");
   const voiceOk = result && result.features.speechRate > 0 && !slow && !pauses;
 
-  function send() {
-    let sentObs: Observation[] = [];
+  // 1) Save: the values join this crew member's record, so Today and the body update.
+  function save() {
+    const out: Observation[] = [];
     if (!synthetic) {
       const t = new Date().toISOString();
       const o = (signal: string, value: number, unit: string, source: string, method: Observation["method"], region: RegionId): Observation =>
         ({ crew: crewId, phase: day < 0 ? "preflight" : "inflight", day, signal, value, unit, time: t, source, method, quality: 1, region, live: true });
-      const out: Observation[] = [];
       if (result?.features.speechRate) {
         out.push(o("speech_rate", +result.features.speechRate.toFixed(2), "syllables/s", "microphone", "estimated", "brain"));
         out.push(o("pause_fraction", +result.features.pauseFraction.toFixed(2), "fraction", "microphone", "estimated", "brain"));
@@ -107,12 +114,23 @@ export function CheckinSimple() {
       if (extra.pain) out.push(o("pain", extra.pain, "0-10", "questionnaire", "self_report", "kidneys"));
       if (camObs.length) out.push(...labObservations(camObs, out, crewId, day, t));
       addObservations(out);
-      sentObs = out;
     }
-    setSent(true);
-    // what is sent leaves encrypted (AES-256-GCM); "Earth" is this same page with the same demo key
-    void sealForEarth({ crew: crewId, day, obs: sentObs.map((p) => [p.signal, p.value, p.unit, p.method]) }).then((r) => setSealed(!!r?.opened));
+    setSaved(out);
   }
+
+  // 2) Send to Earth: optional, offered first when something is outside your normal. Leaves encrypted (AES-256-GCM).
+  function sendToEarth() {
+    setSent(true);
+    void sealForEarth({ crew: crewId, day, obs: (saved ?? []).map((p) => [p.signal, p.value, p.unit, p.method]) }).then((r) => setSealed(!!r?.opened));
+  }
+
+  // What the app's status engine says about today's check-in signals, against this person's own normal
+  const CHECKED = ["speech_rate", "pause_fraction", "heart_rate", "reaction_lapses", "sleep", "mood", "pain"];
+  const outside = saved
+    ? Object.values(statusFor(crewId, day)).flatMap((r) => r.signals)
+        .filter((x) => CHECKED.includes(x.signal) && x.ageDays === 0 && (x.status === "amber" || x.status === "red"))
+    : [];
+  const anyRed = outside.some((x) => x.status === "red");
 
   return (
     <div className="simple narrow">
@@ -155,7 +173,12 @@ export function CheckinSimple() {
               {!showTest && <button className="btn primary" onClick={() => setShowTest(true)}>Do the quick reaction test</button>}
             </>
           )}
-          {camObs.length > 0 && <p className="small">Camera: {camObs.find((x) => x.signal === "heart_rate") ? <>pulse about <b>{camObs.find((x) => x.signal === "heart_rate")!.value}</b> bpm, </> : ""}eyes and posture measured.</p>}
+          <div className="stats">
+            {result.features.speechRate > 0 && <div className="stat"><span className="tiny muted">Speech</span><b>{result.features.speechRate.toFixed(1)}</b> <span className="tiny">syll/s</span></div>}
+            {result.features.speechRate > 0 && <div className="stat"><span className="tiny muted">Pauses</span><b>{Math.round(result.features.pauseFraction * 100)}</b> <span className="tiny">%</span></div>}
+            {result.features.f0MedianHz && <div className="stat"><span className="tiny muted">Pitch</span><b>{Math.round(result.features.f0MedianHz)}</b> <span className="tiny">Hz</span></div>}
+            {CAM_SHOWN.map(([sig, label, unit]) => { const x = camObs.find((c) => c.signal === sig); return x ? <div className="stat" key={sig}><span className="tiny muted">{label}</span><b>{x.value}</b> <span className="tiny">{unit}</span></div> : null; })}
+          </div>
           {synthetic && <p className="tiny muted">Example from the synthetic data set.</p>}
         </section>
       )}
@@ -185,14 +208,31 @@ export function CheckinSimple() {
         {extra.pain >= 7 && <p className="banner warn small">Strong pain: tell the medical officer and open <button className="linkbtn" onClick={() => setScreen("incident")}>Help</button>.</p>}
       </section>
 
-      <button className="btn big primary full" onClick={send} disabled={sent || (!result && !extra.sleep && !extra.mood && !extra.pain && camObs.length === 0)}>
-        {sent ? "Sent" : "Send to Earth"}
-      </button>
-      <p className="center small muted">
-        {sent
-          ? `${link.hasLink ? `Earth receives it in about ${formatDuration(link.owltS / 60)}.` : `No contact now: it goes out in ${formatDuration(link.waitMin)}.`}${sealed ? " It travels encrypted." : ""}`
-          : "Only numbers are sent, never your voice or face. You decide what goes."}
-      </p>
+      {!saved ? (
+        <button className="btn big primary full" onClick={save} disabled={!result && !extra.sleep && !extra.mood && !extra.pain && camObs.length === 0}>
+          Done
+        </button>
+      ) : outside.length === 0 ? (
+        <section className="panel answer ok">
+          <p className="answer-main">All normal for you today.</p>
+          <p className="small muted">Saved. Nothing needs to go to Earth. {!sent && <button className="linkbtn" onClick={sendToEarth}>Send it anyway</button>}</p>
+        </section>
+      ) : (
+        <section className={`panel answer ${anyRed ? "alert" : "watch"}`}>
+          <p className="answer-main">{anyRed ? "Something needs attention now." : "Something is outside your normal."}</p>
+          <ul className="small">{outside.map((x) => <li key={x.signal}><b>{signalLabel(x.signal)}</b>: {x.reason}</li>)}</ul>
+          <p className="tiny muted">Compared with your own usual values. It is a warning, not a diagnosis.</p>
+          <div className="row wrap gap">
+            <button className={`btn ${anyRed ? "danger" : "primary"}`} onClick={() => setScreen("incident")}>What to do</button>
+            {!sent && <button className="btn" onClick={sendToEarth}>Send to Earth</button>}
+          </div>
+        </section>
+      )}
+      {sent && (
+        <p className="center small muted">
+          {link.hasLink ? `Earth receives it in about ${formatDuration(link.owltS / 60)}.` : `No contact now: it goes out in ${formatDuration(link.waitMin)}.`}{sealed ? " It travels encrypted." : ""}
+        </p>
+      )}
     </div>
   );
 }
