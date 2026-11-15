@@ -1,6 +1,6 @@
-// Test the eyelid logic of face.js with SYNTHETIC blink scores:  node tools/test_face.mjs
+// Test the eyelid, expression and posture logic of face.js with SYNTHETIC values:  node tools/test_face.mjs
 // Drafted with AI assistance (Claude, Anthropic). MIT licence.
-import { createEyeTracker, createExpressionTracker, symmetryIndex } from '../src/sensors/face.js';
+import { createEyeTracker, createExpressionTracker, createPostureTracker, symmetryIndex } from '../src/sensors/face.js';
 
 // Builds 60 s at 30 fps: eyes open (score 0.05) with the given events {at (s), ms, kind}
 function run(events, fps = 30, seconds = 60) {
@@ -49,6 +49,30 @@ const sym = [['Even smile', hold(0.8, 0.76), (r) => r && r.asymmetry <= 10], ['O
 for (const [name, frames, check] of sym) {
   const r = symmetryIndex(frames, 'mouthSmileLeft', 'mouthSmileRight'), ok = check(r); if (!ok) fail++;
   console.log(`${ok ? 'OK  ' : 'FAIL'} ${name}: ${r ? `left ${r.left}, right ${r.right}, difference ${r.asymmetry} %` : 'movement not seen'}`);
+}
+// Posture and movement of the head (createPostureTracker): SYNTHETIC head positions, 60 s at 30 fps.
+// The head is 0.25 of the frame wide; jitter of the landmarks: 0.3 % of the face width per frame.
+function posture(pos, fps = 30, seconds = 60, lost = null) {
+  const tr = createPostureTracker(), W = 0.25;
+  for (let i = 0; i <= seconds * fps; i++) {
+    const t = i * 1000 / fps, s = t / 1000; if (lost && s > lost[0] && s < lost[1]) continue;
+    const p = pos(s); tr.push(t, 0.5 + (p.x || 0) * W + 0.003 * W * (rnd() - 0.5) * 2, 0.4 + (p.y || 0) * W + 0.003 * W * (rnd() - 0.5) * 2, W, (p.roll || 0) + 0.4 * (rnd() - 0.5));
+  }
+  return tr.stats(seconds * 1000, seconds);
+}
+const pCases = [
+  ['Still head', () => ({}), (r) => r.head_movement < 1.5 && r.posture_shifts === 0 && Math.abs(r.head_tilt) < 0.5],
+  ['Slow sway of 5 % of the face width, every 4 s (path of a sine: 5 % per second)', (s) => ({ x: 0.05 * Math.sin(2 * Math.PI * s / 4) }), (r) => r.head_movement > 4 && r.head_movement < 6 && r.posture_shifts === 0],
+  ['Head held 10 degrees to one side', () => ({ roll: 10 }), (r) => Math.abs(r.head_tilt - 10) < 0.5 && r.posture_shifts === 0],
+  ['Two posture shifts: moves 0.4 face widths at 20 s, tilts 12 degrees at 40 s, and stays', (s) => ({ x: s > 20 ? 0.4 : 0, roll: s > 40 ? 12 : 0 }), (r) => r.posture_shifts === 2],
+  ['Nodding hard for 5 s and back to the same place: no posture shift (fast nods are mostly averaged out: this measures slow movement)', (s) => ({ y: s > 30 && s < 35 ? 0.3 * Math.sin(2 * Math.PI * 1.5 * (s - 30)) : 0 }), (r) => r.posture_shifts === 0 && r.head_movement > 0.5],
+  ['Face lost for 5 s and back in the same place: the hole is not movement', () => ({}), (r) => r.head_movement < 1.5 && r.posture_shifts === 0, 30, 60, [25, 30]],
+  ['Low frame rate (12 fps), still head', () => ({}), (r) => r.head_movement < 2 && r.posture_shifts === 0, 12],
+  ['Only 8 s in view: not enough to answer', () => ({}), (r) => r.head_movement == null, 30, 8],
+];
+for (const [name, pos, check, fps, seconds, lost] of pCases) {
+  const r = posture(pos, fps, seconds, lost), ok = check(r); if (!ok) fail++;
+  console.log(`${ok ? 'OK  ' : 'FAIL'} Posture · ${name}\n     head movement ${r.head_movement} % of face width per second · tilt ${r.head_tilt} deg · posture shifts ${r.posture_shifts} per min`);
 }
 console.log(fail ? `\n${fail} FAILURES` : '\nAll cases as expected');
 process.exit(fail ? 1 : 0);

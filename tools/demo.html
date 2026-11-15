@@ -85,6 +85,10 @@
   .readout.amber h2{color:var(--amber)} .readout.green h2{color:var(--green)}
   #ewMsg{font-size:1.1rem;margin:0;max-width:60ch}
   #ewSug{background:var(--amberBg);border-left:4px solid var(--amber);padding:.6rem .8rem;margin:.8rem 0 0;max-width:60ch}
+  #ewPattern{margin:.6rem 0 0}
+  .seal{margin-top:.9rem;max-width:72ch;border-left:4px solid var(--earth);background:var(--earthBg);padding:.6rem .8rem}
+  .seal p{margin:0;font-size:.9rem}
+  .seal code{display:block;margin-top:.4rem;font:.8rem/1.45 ui-monospace,Consolas,monospace;color:var(--mut);word-break:break-all}
   .group{font:600 1rem var(--display);margin:1.4rem 0 .2rem;color:var(--mut)}
   .sig{display:grid;grid-template-columns:minmax(7rem,1.3fr) 6.2rem minmax(6rem,1.6fr) 4.6rem;gap:.8rem;align-items:center;padding:.42rem 0;border-top:1px solid var(--rule)}
   .sig .val{font:600 1.1rem var(--display);text-align:right}
@@ -157,7 +161,7 @@
     <div id="livePane">
       <div class="stage">
         <video id="v" playsinline muted></video><div id="roi"></div><div id="bpmLive"></div>
-        <div id="stageMsg">The camera is off. It watches the eyelids only; no image is stored or sent.</div>
+        <div id="stageMsg">The camera is off. It reads the eyelids, the face and the head posture; no image is stored or sent.</div>
         <div id="eye" title="Eye openness"><i></i></div>
       </div>
       <p class="prompt">Say how you slept, how you feel and what is planned today. Keep talking for the full 30 seconds, looking at the camera.</p>
@@ -169,6 +173,7 @@
       <div class="row"><label><input id="usePulse" type="checkbox" checked> Pulse from the camera (experimental)</label></div>
       <div class="row"><span id="timer">0:30</span><div class="meter" title="Microphone level"><i id="lvl"></i></div></div>
       <p id="status" class="fine" aria-live="polite">The audio and the video never leave this device. Only the numbers are kept.</p>
+      <p class="fine">AI on this device: a neural network (MediaPipe Face Landmarker, 478 points of the face and 52 expression scores) reads the face in this browser. Nothing is trained on the crew, and the verdict is a rule anyone can read, not a black box.</p>
       <div class="row"><button id="vowel">Add a voice check: say “aaaa”</button></div>
       <p class="fine">One breath, one steady note, as long as is comfortable. It measures breath support and voice steadiness.</p>
       <div class="row"><button id="sym">Check face symmetry, 8 seconds</button></div>
@@ -183,7 +188,7 @@
     <div id="simPane" hidden>
       <p class="prompt" id="simText"></p>
       <p class="fine">These values are invented for the demo. They are not measurements of a real person.</p>
-      <p class="fine">In a live check-in the same numbers come from 30 seconds of speech and the camera on this laptop: speech rate and pauses from the message, breath support and voice steadiness from a held “aaaa”, and blinks, eyelid closure and yawns from the face.</p>
+      <p class="fine">In a live check-in the same numbers come from 30 seconds of speech and the camera on this laptop: speech rate and pauses from the message, breath support and voice steadiness from a held “aaaa”, and blinks, eyelid closure, yawns and head posture from the face.</p>
     </div>
   </section>
 
@@ -191,15 +196,17 @@
     <h2 id="ewTitle"></h2>
     <p id="ewMsg"></p>
     <p id="ewSug" hidden></p>
+    <p id="ewPattern" class="fine" hidden></p>
     <div id="signals"></div>
     <div class="legend" id="legend" hidden><span><i></i>your usual range, 2 standard deviations either side</span><span>● today</span></div>
     <p id="strokeRow" hidden><button id="strokeBtn">See who decides for a suspected stroke</button></p>
     <div class="row"><button id="send" class="primary" disabled>Send this check-in to Earth</button><span id="sendNote" class="fine" style="margin:0"></span></div>
+    <div id="sealBox" class="seal" hidden><p id="sealText"></p><code id="sealHex"></code></div>
   </section>
 </div>
 
 <footer>
-  <p class="fine">SOSpesAI flags a change from a person's own baseline before anyone measures vital signs. It never diagnoses and never goes beyond amber: amber means “run the standard check”. All signals here are estimates from a microphone and a camera.</p>
+  <p class="fine">SOSpesAI flags a change from a person's own baseline before anyone measures vital signs. It never diagnoses and never goes beyond amber: amber means “run the standard check”. All signals here are estimates from a microphone and a camera. What is sent to Earth is the summary in numbers, encrypted on this device with AES-256-GCM, the algorithm CCSDS recommends for space links; the key of this demo is created in the browser.</p>
   <p class="fine">Light time to Mars is computed from JPL's approximate planetary elements and agrees with JPL Horizons within 0.3 s for every day from 2026 to 2040. The times to act, the 15 minute ground response and the decision thresholds are team assumptions that still need clinical validation. Crew data are synthetic. Not a medical device.</p>
 </footer>
 </main>
@@ -211,6 +218,7 @@ import { analyzeVoice, analyzeVowel } from '../src/sensors/voice.js';
 import { startFace, stopFace, symmetryIndex } from '../src/sensors/face.js';
 import { startPulseTracked, pushFaceFrame, pulseSummary, stopPulse } from '../src/sensors/rppg.js';
 import { earlyWarning } from '../src/engine/earlyWarning.js';
+import { newMissionKey, createSender, createReceiver, toHex } from '../src/engine/seal.js';
 
 const $ = (id) => document.getElementById(id);
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -227,10 +235,11 @@ const SIG = {
   blink_rate: { n: 'Blink rate', g: 'eyes', floor: 0.25, abs: 2 }, perclos: { n: 'Eyes closed', g: 'eyes', abs: 2 },
   long_eye_closures: { n: 'Slow eyelid closures', g: 'eyes', abs: 0.7 }, yawns: { n: 'Yawns', g: 'eyes', abs: 0.5 },
   blink_duration: { n: 'Blink length', g: 'eyes', floor: 0.2, abs: 30 }, facial_expressiveness: { n: 'Facial movement', g: 'eyes', floor: 0.2, abs: 0.8 },
+  head_movement: { n: 'Head movement', g: 'posture', floor: 0.3, abs: 1.5 }, head_tilt: { n: 'Head tilt to one side', g: 'posture', abs: 4 }, posture_shifts: { n: 'Posture shifts', g: 'posture', abs: 1 },
   smile_asymmetry: { n: 'Smile, difference between sides', g: 'sym', abs: 8 }, brow_asymmetry: { n: 'Eyebrows, difference between sides', g: 'sym', abs: 8 },
   heart_rate: { n: 'Pulse', g: 'pulse', floor: 0.07 },
 };
-const GROUPS = { voice: 'Voice message', vowel: 'Voice check, sustained “aaaa”', eyes: 'Eyelids and face, from the camera', pulse: 'Pulse from the camera, experimental', sym: 'Face symmetry, guided check' };
+const GROUPS = { voice: 'Voice message', vowel: 'Voice check, sustained “aaaa”', eyes: 'Eyelids and face, from the camera', posture: 'Posture and movement of the head, from the camera (experimental)', pulse: 'Pulse from the camera, experimental', sym: 'Face symmetry, guided check' };
 
 // ---------- Simulated crew member (invented values) ----------
 const SYN_BASE = {
@@ -239,19 +248,21 @@ const SYN_BASE = {
   shimmer: { mean: 4.8, sd: 1.2 }, vowel_harmonicity: { mean: 15.8, sd: 1.3 }, voice_breaks: { mean: 0, sd: 0.5 }, blink_rate: { mean: 14, sd: 4 },
   perclos: { mean: 3, sd: 2 }, long_eye_closures: { mean: 0, sd: 0.7 }, yawns: { mean: 0, sd: 0.5 }, heart_rate: { mean: 64, sd: 5 },
   blink_duration: { mean: 190, sd: 35 }, facial_expressiveness: { mean: 6.2, sd: 1.1 },
+  head_movement: { mean: 4.2, sd: 1.3 }, head_tilt: { mean: 1.5, sd: 4 }, posture_shifts: { mean: 1, sd: 1 },
 };
 const UNIT = { speech_rate: 'syl/s', pause_fraction: '', mean_pause_duration: 's', f0_mean: 'Hz', f0_variability: 'st', voice_harmonicity: 'dB', max_phonation_time: 's',
   jitter: '%', shimmer: '%', vowel_harmonicity: 'dB', voice_breaks: '', blink_rate: '/min', perclos: '%', long_eye_closures: '', yawns: '', heart_rate: 'bpm',
-  blink_duration: 'ms', facial_expressiveness: '', smile_asymmetry: '%', brow_asymmetry: '%' };
-const SRC = { voice: 'microphone', vowel: 'microphone', eyes: 'camera_face', pulse: 'camera_rppg', sym: 'camera_face' };
+  blink_duration: 'ms', facial_expressiveness: '', smile_asymmetry: '%', brow_asymmetry: '%',
+  head_movement: '%/s', head_tilt: '°', posture_shifts: '/min' };
+const SRC = { voice: 'microphone', vowel: 'microphone', eyes: 'camera_face', posture: 'camera_face', pulse: 'camera_rppg', sym: 'camera_face' };
 const sim = (values) => Object.entries(values).map(([signal, value]) => ({ crew: 'CM-2', signal, value, unit: UNIT[signal], source: SRC[SIG[signal].g], method: 'simulated', quality: 0.9 }));
 const SIM = {
   rested: { text: 'Simulated crew member CM-2 after a normal night, mission day 41.',
     obs: sim({ speech_rate: 4.5, pause_fraction: 0.21, mean_pause_duration: 0.52, f0_mean: 130, f0_variability: 2.5, voice_harmonicity: 10.8, max_phonation_time: 14.6,
-      jitter: 0.15, shimmer: 4.4, vowel_harmonicity: 16.2, voice_breaks: 0, blink_rate: 13, perclos: 2.4, long_eye_closures: 0, yawns: 0, blink_duration: 185, facial_expressiveness: 6.5, heart_rate: 62 }) },
+      jitter: 0.15, shimmer: 4.4, vowel_harmonicity: 16.2, voice_breaks: 0, blink_rate: 13, perclos: 2.4, long_eye_closures: 0, yawns: 0, blink_duration: 185, facial_expressiveness: 6.5, head_movement: 4.5, head_tilt: 2, posture_shifts: 1, heart_rate: 62 }) },
   tired: { text: 'Simulated crew member CM-2 after three short nights and a sore throat, mission day 44.',
     obs: sim({ speech_rate: 3.9, pause_fraction: 0.29, mean_pause_duration: 0.74, f0_mean: 124, f0_variability: 1.6, voice_harmonicity: 8.9, max_phonation_time: 9.0,
-      jitter: 0.31, shimmer: 8.1, vowel_harmonicity: 11.2, voice_breaks: 1, blink_rate: 21, perclos: 11, long_eye_closures: 3, yawns: 2, blink_duration: 310, facial_expressiveness: 3.6, heart_rate: 71 }) },
+      jitter: 0.31, shimmer: 8.1, vowel_harmonicity: 11.2, voice_breaks: 1, blink_rate: 21, perclos: 11, long_eye_closures: 3, yawns: 2, blink_duration: 310, facial_expressiveness: 3.6, head_movement: 1.7, head_tilt: 9.5, posture_shifts: 0, heart_rate: 71 }) },
 };
 
 // ---------- Personal baseline of the person at the keyboard, kept in this browser only ----------
@@ -284,8 +295,8 @@ function render() {
   if (!obs.length) { title = 'Nothing measured yet'; msg = 'Start a check-in. Each signal will appear here next to your own usual range.'; }
   else if (ew.level === 'amber') {
     const n = ew.flagged.length, top = ew.flagged.slice(0, 3).map(f => f.name).join(', ');   // already sorted, biggest change first
-    title = 'Heads-up, something changed';
-    msg = n === 1 ? `One signal moved well away from your baseline: ${top}.` : `${n} signals moved away from your baseline. The biggest changes: ${top}${n > 3 ? `, and ${n - 3} more below` : ''}.`;
+    title = ew.rule === 'pattern' ? 'Heads-up, small changes together' : 'Heads-up, something changed';
+    msg = ew.rule === 'pattern' ? `${n} signals moved a little at the same time, from ${ew.pattern.sources.length} sensors. None is far on its own. The biggest: ${top}.` : n === 1 ? `One signal moved well away from your baseline: ${top}.` : `${n} signals moved away from your baseline. The biggest changes: ${top}${n > 3 ? `, and ${n - 3} more below` : ''}.`;
   }
   else if (ew.level === 'green') { title = 'Within your baseline'; msg = ew.flagged.length ? ew.message : `All ${ew.usable} signals are inside your usual range.`; }
   else { title = 'Not enough to compare yet';
@@ -296,6 +307,9 @@ function render() {
   $('readout').className = 'readout ' + (obs.length ? ew.level : 'silent');
   $('ewTitle').textContent = title; $('ewMsg').textContent = msg;
   $('ewSug').hidden = !ew.suggestion; $('ewSug').textContent = ew.suggestion || '';
+  const joint = obs.length && ew.level !== 'silent' && ew.pattern.distance != null;
+  $('ewPattern').hidden = !joint;
+  if (joint) $('ewPattern').textContent = `Read together, today's ${ew.usable} signals sit ${ew.pattern.distance.toFixed(1)} standard deviations from your baseline. ${ew.pattern.moved === 0 ? 'None' : ew.pattern.moved} of them moved 1.5 or more.`;
   let html = '';
   for (const g in GROUPS) {
     const rows = obs.filter(o => SIG[o.signal].g === g); if (!rows.length) continue;
@@ -324,7 +338,7 @@ for (const b of document.querySelectorAll('.seg button')) b.onclick = () => {
   for (const x of document.querySelectorAll('.seg button')) x.setAttribute('aria-pressed', x === b);
   $('livePane').hidden = mode !== 'live'; $('simPane').hidden = mode === 'live';
   if (mode !== 'live') $('simText').textContent = SIM[mode].text;
-  $('sendNote').textContent = ''; render();
+  $('sendNote').textContent = ''; $('sealBox').hidden = true; render();
 };
 
 // ---------- Live check-in: microphone + camera at the same time ----------
@@ -360,7 +374,7 @@ function stopMeter() { cancelAnimationFrame(raf); if (actx) { actx.close(); actx
 const clock = (t0) => { const s = Math.max(0, TARGET_S - Math.floor((performance.now() - t0) / 1000)); $('timer').textContent = `0:${String(s).padStart(2, '0')}`; };
 
 $('start').onclick = async () => {
-  live.voice = []; live.vowel = []; live.face = []; live.pulse = null; live.sym = []; pulseOn = false; $('sendNote').textContent = ''; render();
+  live.voice = []; live.vowel = []; live.face = []; live.pulse = null; live.sym = []; pulseOn = false; $('sendNote').textContent = ''; $('sealBox').hidden = true; render();
   try { mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: false } }); }
   catch (e) { status(`The microphone is not available (${e.message}). Allow it in the browser and start again.`); return; }
   running = true; rec = null; $('start').disabled = true; $('finish').disabled = false; $('vowel').disabled = true; $('sym').disabled = true; $('saveBase').disabled = true;
@@ -440,7 +454,7 @@ $('vowel').onclick = async () => {
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
 $('sym').onclick = async () => {
   if (running) return;
-  running = true; $('sym').disabled = true; $('start').disabled = true; $('vowel').disabled = true; $('sendNote').textContent = '';
+  running = true; $('sym').disabled = true; $('start').disabled = true; $('vowel').disabled = true; $('sendNote').textContent = ''; $('sealBox').hidden = true;
   const frames = { smile: [], brow: [] }; let phase = null, seen, stream = null; const first = new Promise(r => { seen = r; });
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } }, audio: false });
@@ -598,14 +612,30 @@ function refresh() {
 }
 for (const id of ['profile', 'date', 'cond', 'dist', 'outage']) $(id).oninput = refresh;
 
-$('send').onclick = () => {
+// The summary is encrypted on this device before it leaves (src/engine/seal.js). The key of the demo is created here;
+// "Earth" is this same page, holding the same key, and opens the message when it arrives.
+let sealer = null;
+async function sealSummary(summary) {
+  if (!sealer) { const key = await newMissionKey(); sealer = { tx: createSender(key, 1), rx: createReceiver(key) }; }
+  return sealer.tx.seal(summary);
+}
+$('send').onclick = async () => {
   let link; try { link = showLink(); } catch { return; }
   const obs = currentObs();
-  const packet = JSON.stringify({ crew: 'CM-2', time: dateISO(), flag: lastWarning ? lastWarning.level : null, note: lastWarning ? lastWarning.message : '', observations: obs });
-  const kB = (new Blob([packet]).size / 1024).toFixed(1);
+  const summary = { crew: 'CM-2', time: dateISO(), flag: lastWarning ? lastWarning.level : null, note: lastWarning ? lastWarning.message : '', observations: obs };
+  let sealed;
+  try { sealed = await sealSummary(summary); } catch (e) { $('sendNote').textContent = `Not sent: ${e.message}.`; return; }
+  const kB = (sealed.frame.length / 1024).toFixed(1);
+  $('sealBox').hidden = false;
+  $('sealText').textContent = `Encrypted on this device before leaving, with AES-256-GCM. ${sealed.clearBytes} bytes of numbers become ${sealed.frame.length} bytes on the link: 12 more that number the message (this is number ${sealed.counter}) and 16 that seal it. This is what travels:`;
+  $('sealHex').textContent = `${toHex(sealed.frame, 56)}…`;
   $('far').scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' });
-  if (!link.hasLink) { $('sendNote').textContent = `Queued, ${kB} kB. No link for ${formatDuration(link.waitUntilLink_s)}.`; $('clock').textContent = 'Queued until the link is back'; return; }
-  const real = link.owlt_s, done = () => { $('clock').textContent = `Delivered after ${formatDuration(real)}`; $('sendNote').textContent = `Delivered, ${kB} kB of numbers. No audio or video was sent.`; };
+  if (!link.hasLink) { $('sendNote').textContent = `Queued and encrypted, ${kB} kB. No link for ${formatDuration(link.waitUntilLink_s)}.`; $('clock').textContent = 'Queued until the link is back'; return; }
+  const real = link.owlt_s, done = async () => {
+    $('clock').textContent = `Delivered after ${formatDuration(real)}`;
+    try { const got = await sealer.rx.open(sealed.frame); $('sendNote').textContent = `Delivered and opened on Earth with the mission key: ${got.payload.observations.length} values, ${kB} kB. No audio or video was sent.`; }
+    catch (e) { $('sendNote').textContent = `Delivered, but Earth could not open it: ${e.message}.`; }
+  };
   if (calm) { done(); return; }
   // Real time up to 3 s; longer trips are compressed to 6 s and the clock shows the real light time
   const shown = real <= 3 ? Math.max(real, 0.5) : 6, t0 = performance.now();
