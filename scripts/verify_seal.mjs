@@ -23,7 +23,7 @@ const raw = nodeCrypto.randomBytes(32), key = await keyFromBytes(new Uint8Array(
 const s1 = await seal(key, packet, { sender: 7, counter: 41 });
 check("The sealed message is 28 bytes longer than the clear one (12 of IV + 16 of tag)", s1.frame.length === s1.clearBytes + 28, `${s1.clearBytes} bytes of numbers -> ${s1.frame.length} bytes on the link`);
 check("The IV carries the sender (32 bits) and the counter (64 bits)", toHex(s1.frame, 12) === "00000007" + "0000000000000029" && peek(s1.frame).sender === 7 && peek(s1.frame).counter === 41);
-const label = Buffer.from("SOSpesAI check-in v1");
+const label = Buffer.from("SOSpesIA check-in v1");
 const dec = nodeCrypto.createDecipheriv("aes-256-gcm", raw, s1.frame.subarray(0, 12)); dec.setAAD(label); dec.setAuthTag(s1.frame.subarray(s1.frame.length - 16));
 const clear = Buffer.concat([dec.update(s1.frame.subarray(12, s1.frame.length - 16)), dec.final()]).toString("utf8");
 check("OpenSSL opens what seal.ts sealed, and reads the same message", clear === JSON.stringify(packet));

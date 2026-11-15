@@ -1,5 +1,5 @@
 {
- "_about": "Biblioteca de escenarios de SOSpesAI. Valores clínicos pendientes de validar por la persona de salud. Generado con ayuda de IA (Claude, Anthropic). Licencia CC0.",
+ "_about": "Biblioteca de escenarios de SOSpesIA. Valores clínicos pendientes de validar por la persona de salud. Generado con ayuda de IA (Claude, Anthropic). Licencia CC0.",
  "escenarios": [
   {
    "id": "colico_renal",

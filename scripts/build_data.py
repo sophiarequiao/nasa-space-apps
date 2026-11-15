@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Build the English data files used by the SOSpesAI web app.
+Build the English data files used by the SOSpesIA web app.
 
 Reads the team's original (Spanish-keyed) files from data_raw/ and writes
 English-keyed JSON to public/data/. Long texts that came from the health
-lead's spreadsheet (SOSpesAI_regiones_auditadas_14nov.xlsx) were translated
+lead's spreadsheet (SOSpesIA_regiones_auditadas_14nov.xlsx) were translated
 by hand and live in this script, so the output is fully reproducible.
 
 Usage:  python3 scripts/build_data.py
@@ -572,16 +572,16 @@ learn = [
      "source": "NASA OCHMO - Carbon dioxide technical brief", "url": "https://www.nasa.gov/ochmo-tb-004-carbon-dioxide-2/"},
     {"title": "What is the radiation dose?", "text": "Space radiation includes particles from the Sun and from deep space. The cumulative dose is one of the variables used to assess risk, but it is not enough on its own: the type of exposure and its duration also matter. Protective measures depend on the mission and on agency protocols.",
      "source": "NASA - Five Hazards of Human Spaceflight", "url": "https://www.nasa.gov/hrp/"},
-    {"title": "Do medicines expire earlier in space?", "text": "Some medicines studied after staying on the ISS showed stability problems. Those results do not let us set a new expiry date for every drug: formulation, packaging and storage all matter. SOSpesAI separates the label expiry date from a stability alert that has not been validated.",
+    {"title": "Do medicines expire earlier in space?", "text": "Some medicines studied after staying on the ISS showed stability problems. Those results do not let us set a new expiry date for every drug: formulation, packaging and storage all matter. SOSpesIA separates the label expiry date from a stability alert that has not been validated.",
      "source": "Du et al. (2011), Evaluation of Physical and Chemical Changes in Pharmaceuticals Flown on Space Missions", "url": "https://pubmed.ncbi.nlm.nih.gov/21479701/"},
     {"title": "Why does Earth take so long to answer?", "text": "Communication with a distant spacecraft is not instant: radio signals travel at the speed of light. On missions to Mars the wait can be several minutes each way, and weeks with no link during solar conjunction. That is why some urgent measures must be planned in onboard protocols and not depend on an immediate answer from Earth.",
      "source": "JPL approximate planetary positions (team link table)", "url": "https://ssd.jpl.nasa.gov/planets/approx_pos.html"},
-    {"title": "What is adaptive monitoring?", "text": "It means reading a measurement against the person's usual pattern and the mission conditions, and measuring more only when something justifies it. A change from the baseline can trigger a check, but does not prove a disease on its own. It is an approach proposed by SOSpesAI, not a validated clinical function.",
-     "source": "SOSpesAI team proposal (internal source, not clinical evidence)", "url": ""},
+    {"title": "What is adaptive monitoring?", "text": "It means reading a measurement against the person's usual pattern and the mission conditions, and measuring more only when something justifies it. A change from the baseline can trigger a check, but does not prove a disease on its own. It is an approach proposed by SOSpesIA, not a validated clinical function.",
+     "source": "SOSpesIA team proposal (internal source, not clinical evidence)", "url": ""},
     {"title": "What is the IMM?", "text": "The Integrated Medical Model (IMM) is a NASA modelling tool used to study medical risks of space missions. It helps explore scenarios and resource needs, but its estimates are not individual diagnoses.",
      "source": "NASA - Integrated Medical Model", "url": "https://www.nasa.gov/hrp/"},
-    {"title": "What is the authority dial?", "text": "It is a SOSpesAI visual that compares how long Earth needs to answer with how urgent an incident is (A = Earth response time / time available). It explains when a crew may need to apply a pre-approved protocol without waiting for Earth. It does not replace medical judgement or authorise any intervention by itself.",
-     "source": "SOSpesAI team proposal (not clinically validated)", "url": ""},
+    {"title": "What is the authority dial?", "text": "It is a SOSpesIA visual that compares how long Earth needs to answer with how urgent an incident is (A = Earth response time / time available). It explains when a crew may need to apply a pre-approved protocol without waiting for Earth. It does not replace medical judgement or authorise any intervention by itself.",
+     "source": "SOSpesIA team proposal (not clinically validated)", "url": ""},
 ]
 write("learn.json", {"about": "Learn screen texts by the health lead (translated). Status: TO CHECK. CC BY 4.0.", "topics": learn})
 
@@ -615,7 +615,7 @@ scenarios = [
     ("evacuation", "Evacuation decision", "operational", "low Earth orbit, Moon", "Worsening despite treatment", "Compares the profile's evacuation time with the critical time", "Crew-11: first ISS medical evacuation, January 2026 [secondary source]", None, None, None),
 ]
 write("scenarios.json", {
-    "about": "SOSpesAI scenario library (24). Clinical values pending validation by the health lead. CC0. Generated with AI assistance (Claude, Anthropic).",
+    "about": "SOSpesIA scenario library (24). Clinical values pending validation by the health lead. CC0. Generated with AI assistance (Claude, Anthropic).",
     "scenarios": [
         {"id": s[0], "name": s[1], "category": s[2], "profiles": s[3], "trigger": s[4], "app_action": s[5],
          "basis": s[6], "card": s[7], "crew": s[8], "day": s[9]}

@@ -124,7 +124,7 @@ function WhatDoWeLose() {
         </div>
       </Card>
       <Card title="Why it matters">
-        <p>NASA designs exploration medical systems by choosing which resources to carry according to the risk they cover (IMPACT, with 119 conditions). SOSpesAI makes the same link visible to the crew every day.</p>
+        <p>NASA designs exploration medical systems by choosing which resources to carry according to the risk they cover (IMPACT, with 119 conditions). SOSpesIA makes the same link visible to the crew every day.</p>
         <p className="small">Example: HemoCue failed → no white-cell count on board → the sepsis card loses its lab test → waiting for Earth becomes more valuable, but on Mars the answer takes over half an hour.</p>
         <p className="tiny muted">Resource-to-condition links are a team assumption pending validation by the health lead.</p>
       </Card>

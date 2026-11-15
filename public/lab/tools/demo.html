@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SOSpesAI, crew health check-in</title>
+<title>SOSpesIA, crew health check-in</title>
 <link rel="icon" href="data:,">
-<!-- End-to-end demo of the SOSpesAI modules. Synthetic data only. Not a medical device.
+<!-- End-to-end demo of the SOSpesIA modules. Synthetic data only. Not a medical device.
      No external requests except the optional MediaPipe face model. Drafted with AI assistance (Claude, Anthropic). MIT licence. -->
 <style>
   :root{
@@ -112,8 +112,8 @@
 </head>
 <body>
 <header class="bar">
-  <a id="toApp" href="../../" hidden>← SOSpesAI app</a>
-  <div class="brand">SOSpesAI<span>crew health check-in</span></div>
+  <a id="toApp" href="../../" hidden>← SOSpesIA app</a>
+  <div class="brand">SOSpesIA<span>crew health check-in</span></div>
   <label>Mission <select id="profile"></select></label>
   <label>Date, UTC <input id="date" type="datetime-local"></label>
   <label>Situation <select id="cond"></select></label>
@@ -212,7 +212,7 @@
 </div>
 
 <footer>
-  <p class="fine">SOSpesAI flags a change from a person's own baseline before anyone measures vital signs. It never diagnoses and never goes beyond amber: amber means “run the standard check”. All signals here are estimates from a microphone and a camera. What is sent to Earth is the summary in numbers, encrypted on this device with AES-256-GCM, the algorithm CCSDS recommends for space links; the key of this demo is created in the browser.</p>
+  <p class="fine">SOSpesIA flags a change from a person's own baseline before anyone measures vital signs. It never diagnoses and never goes beyond amber: amber means “run the standard check”. All signals here are estimates from a microphone and a camera. What is sent to Earth is the summary in numbers, encrypted on this device with AES-256-GCM, the algorithm CCSDS recommends for space links; the key of this demo is created in the browser.</p>
   <p class="fine">Light time to Mars is computed from JPL's approximate planetary elements and agrees with JPL Horizons within 0.3 s for every day from 2026 to 2040. The times to act, the 15 minute ground response and the decision thresholds are team assumptions that still need clinical validation. Crew data are synthetic. Not a medical device.</p>
 </footer>
 </main>
@@ -230,7 +230,7 @@ import { loadRadiationData, radiationFor } from '../src/engine/radiation.js';
 
 const $ = (id) => document.getElementById(id);
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-if (location.pathname.includes('/lab/tools/')) document.getElementById('toApp').hidden = false;   // this page also ships inside the SOSpesAI app, as its sensor lab
+if (location.pathname.includes('/lab/tools/')) document.getElementById('toApp').hidden = false;   // this page also ships inside the SOSpesIA app, as its sensor lab
 await loadAuthorityData();
 await loadRadiationData().catch(() => {});   // NASA radiation by mission: the page works without it
 
@@ -278,8 +278,8 @@ const SIM = {
 };
 
 // ---------- Personal baseline of the person at the keyboard, kept in this browser only ----------
-const readBase = () => { try { return JSON.parse(localStorage.getItem('sospesai_baseline') || '[]'); } catch { return []; } };
-const writeBase = (rows) => { try { localStorage.setItem('sospesai_baseline', JSON.stringify(rows)); } catch {} };
+const readBase = () => { try { return JSON.parse(localStorage.getItem('sospesia_baseline') || '[]'); } catch { return []; } };
+const writeBase = (rows) => { try { localStorage.setItem('sospesia_baseline', JSON.stringify(rows)); } catch {} };
 function personalBaseline() {
   const rows = readBase(), b = {};
   if (rows.length < 2) return b;
@@ -645,8 +645,8 @@ $('send').onclick = async () => {
   let link; try { link = showLink(); } catch { return; }
   const obs = currentObs();
   const summary = { crew: 'CM-2', time: dateISO(), flag: lastWarning ? lastWarning.level : null, note: lastWarning ? lastWarning.message : '', observations: obs };
-  // Numbers only, kept in this browser: when this page runs inside the SOSpesAI app, its Message screen can add them to the message to Earth
-  try { localStorage.setItem('sospesai.lab.lastCheckin', JSON.stringify({ ...summary, mode, saved_at: Date.now() })); } catch {}
+  // Numbers only, kept in this browser: when this page runs inside the SOSpesIA app, its Message screen can add them to the message to Earth
+  try { localStorage.setItem('sospesia.lab.lastCheckin', JSON.stringify({ ...summary, mode, saved_at: Date.now() })); } catch {}
   let sealed;
   try { sealed = await sealSummary(summary); } catch (e) { $('sendNote').textContent = `Not sent: ${e.message}.`; return; }
   const kB = (sealed.frame.length / 1024).toFixed(1);

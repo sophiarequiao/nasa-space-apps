@@ -23,7 +23,7 @@
 // Checked in tools/test_seal.mjs against Test Cases 13 and 14 of the GCM specification and against OpenSSL.
 // Drafted with AI assistance (Claude, Anthropic). MIT licence.
 
-const LABEL = new TextEncoder().encode('SOSpesAI check-in v1');   // authenticated with every message, never encrypted
+const LABEL = new TextEncoder().encode('SOSpesIA check-in v1');   // authenticated with every message, never encrypted
 const IV_BYTES = 12, TAG_BYTES = 16;
 const subtle = () => {
   const c = globalThis.crypto;

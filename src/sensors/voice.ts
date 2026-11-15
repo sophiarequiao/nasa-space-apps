@@ -202,7 +202,7 @@ export async function analyzeVoice(audio: Blob, personalMean: PersonalVoiceMean 
 
 // Personal history of the user's own recordings (numbers only). Browser storage can be
 // unavailable (private mode, embedded views): fall back to memory.
-const KEY = "sospesai.voiceHistory.v1";
+const KEY = "sospesia.voiceHistory.v1";
 let memoryHistory: VoiceFeatures[] = [];
 
 export function loadVoiceHistory(): VoiceFeatures[] {

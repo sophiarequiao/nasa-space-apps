@@ -1,5 +1,5 @@
 {
-  "_about": "SOSpesAI mission profiles. Values from the team PROPOSAL (section 1b) and motor_autoridad.py. Items marked ASSUMPTION are team design parameters, not NASA data. Drafted with AI assistance (Claude, Anthropic).",
+  "_about": "SOSpesIA mission profiles. Values from the team PROPOSAL (section 1b) and motor_autoridad.py. Items marked ASSUMPTION are team design parameters, not NASA data. Drafted with AI assistance (Claude, Anthropic).",
   "assumptions": {
     "ground_response_min": 15,
     "earth_threshold": 0.25,

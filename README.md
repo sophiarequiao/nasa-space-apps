@@ -1,4 +1,4 @@
-# SOSpesAI
+# SOSpesIA
 
 **An intelligent health and medical-resource companion for space missions.**
 *Know your crew. Know your resources. Know your options. Know your time.*
@@ -11,7 +11,7 @@ NASA Space Apps Challenge 2026 · Challenge: *Create Health Monitoring Software 
 ## The idea
 
 Knowing what is wrong with an astronaut is not enough. The crew also needs to know what they can do
-with what is on board, and whether Earth will answer in time. SOSpesAI joins four questions that are
+with what is on board, and whether Earth will answer in time. SOSpesIA joins four questions that are
 usually answered separately:
 
 | Pillar | Question | In the app |
@@ -119,8 +119,14 @@ Code MIT (`LICENSE`) · texts CC BY 4.0 · synthetic data CC0. Third-party licen
 
 ## AI use
 
-Research, writing, code and starter data were produced with AI assistance (Claude, Anthropic).
+We used AI assistants during the hackathon and declare it here and in the submission form.
+
+- **Claude (Anthropic)**: research, writing, code, tests and the starter (synthetic) data.
+- **ChatGPT / Codex (OpenAI)**, **Gemini (Google)** and **NotebookLM (Google)**: searching and cross-checking sources, the desk review of the medical cards, drafting and translating the pitch, and images of the slide deck (watermarked).
+- **Tripo AI**: the 3D body model `public/geometries/human_body.glb` is AI-generated (see `NOTICE.md`).
+- No AI tool was used to create or modify NASA logos, flags or mission identifiers.
+- At run time the app uses no generative AI: signal processing, readable rules, and pre-trained on-device models (MediaPipe Face Landmarker; Pose Landmarker as an option in the sensor lab). Nothing is trained on crew data.
 
 ## Team
 
-Caril (voice, link, authority, camera pulse) · Sophia S. (health lead) · Sophia D. (app) · Elvira (research and submission) · Miguel (data and video).
+Five members at the Seville local event: technical lead (voice, link, authority, camera), health lead, app lead, research and submission lead, and data and video lead.

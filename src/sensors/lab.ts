@@ -4,7 +4,7 @@
 // License: MIT. Written with AI assistance (Claude, Anthropic).
 import type { Observation, RegionId } from "../types";
 
-const LAB_KEY = "sospesai.lab.lastCheckin";
+const LAB_KEY = "sospesia.lab.lastCheckin";
 const MAX_AGE_MS = 12 * 3600_000;
 const REGIONS: RegionId[] = ["brain", "eyes", "neck", "heart", "lungs", "musculoskeletal", "kidneys", "blood", "skin"];
 

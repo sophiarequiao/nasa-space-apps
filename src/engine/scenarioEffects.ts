@@ -1,4 +1,4 @@
-// Scenario effects (by Miguel, data lead): turns a scenario into Observation[] that the app
+// Scenario effects (by the data lead): turns a scenario into Observation[] that the app
 // adds to the data; the status engine then colours the body as usual.
 // Effects file: src/data/scenarioEffects.json. Clinical values are ILLUSTRATIVE, pending
 // validation by the health lead. Each observation carries the scenario id so it can be removed.
@@ -19,7 +19,7 @@ export interface EffectsFile {
 
 /**
  * The only place that depends on the shape of baselines.json. Accepts the app's English
- * file ({ baselines: { crew: { signal: { flight_mean, flight_sd } } } }) and Miguel's
+ * file ({ baselines: { crew: { signal: { flight_mean, flight_sd } } } }) and the data lead's
  * original formats (inflight_mean / inflight_sd, or vuelo_media / vuelo_dt).
  */
 function inflightStats(baselines: unknown, crew: string, signal: string): Stats | null {

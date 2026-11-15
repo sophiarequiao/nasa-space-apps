@@ -16,7 +16,7 @@ const MAX_S = 30;
 
 // The sensor lab (public/lab/) keeps the last check-in it sent in this browser, as numbers only.
 // The astronaut can add it to this message; it never arrives on its own.
-const LAB_KEY = "sospesai.lab.lastCheckin";
+const LAB_KEY = "sospesia.lab.lastCheckin";
 const LAB_MAX_AGE_MS = 12 * 3600_000;
 const REGION_IDS: RegionId[] = ["brain", "eyes", "neck", "heart", "lungs", "musculoskeletal", "kidneys", "blood", "skin"];
 interface LabObservation { signal: string; value: number; unit: string; source?: string; quality?: number; region?: string }

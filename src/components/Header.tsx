@@ -15,7 +15,7 @@ export function Header() {
     <header className={expert ? "header" : "header header-glass"}>
       {!expert && <SimpleBar />}
       {expert && <div className="header-top">
-        <button className="brand" onClick={() => setScreen(expert ? "message" : "body")} aria-label="SOSpesAI home">
+        <button className="brand" onClick={() => setScreen(expert ? "message" : "body")} aria-label="SOSpesIA home">
           <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden>
             <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" strokeWidth="2" opacity=".5" />
             <path d="M5 17h6l3-7 4 13 3-6h6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
@@ -90,7 +90,7 @@ function SimpleBar() {
         <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden>
           <path d="M5 17h6l3-7 4 13 3-6h6" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        <span><b>SOSpesAI</b><small>Health monitor</small></span>
+        <span><b>SOSpesIA</b><small>Health monitor</small></span>
       </button>
 
       <div className="pill-box crew-pill">

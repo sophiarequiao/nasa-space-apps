@@ -1,7 +1,7 @@
 {
-  "name": "sospesai",
+  "name": "sospesia",
   "version": "0.1.0",
-  "description": "SOSpesAI: health and medical-resource companion for astronauts on space missions (NASA Space Apps Challenge 2026, Seville). Not a medical device.",
+  "description": "SOSpesIA: health and medical-resource companion for astronauts on space missions (NASA Space Apps Challenge 2026, Seville). Not a medical device.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

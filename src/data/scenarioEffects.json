@@ -1,5 +1,5 @@
 {
- "_about": "Scenario effects for SOSpesAI (links scenarios.json to observations). ILLUSTRATIVE clinical values, pending validation by Sophia S. 'set' = absolute value; 'sd' = in-flight mean + k * in-flight SD of that crew member. CC0.",
+ "_about": "Scenario effects for SOSpesIA (links scenarios.json to observations). ILLUSTRATIVE clinical values, pending validation by the health lead 'set' = absolute value; 'sd' = in-flight mean + k * in-flight SD of that crew member. CC0.",
  "start_date": "2026-11-01",
  "hour_utc": 10,
  "all_crew": [

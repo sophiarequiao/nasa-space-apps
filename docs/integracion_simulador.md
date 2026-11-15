@@ -1,6 +1,6 @@
-# Para Miguel: cómo conectar tu simulador con la app
+# Para el responsable de datos: cómo conectar tu simulador con la app
 
-SOSpesAI · NASA Space Apps 2026 · Sevilla · De Sophia D. (app) a Miguel (datos y vídeo)
+SOSpesIA · NASA Space Apps 2026 · Sevilla · De la responsable de la app (app) a el responsable de datos (datos y vídeo)
 
 ## 1. Qué hay ya en la app (repositorio `spaceApps`)
 
@@ -123,5 +123,5 @@ Cada escenario de la app tiene además los campos `card`, `crew` y `day`, que en
 
 ## 8. Reparto que propongo para la revisión de las 18:00
 
-- **Miguel:** `scenarioEffects.json` y `applyScenario()` en inglés (opción A), y los efectos de los escenarios que faltan cuando puedas. Los valores clínicos los valida Sophia S.
-- **Sophia D.:** conecto tu función a la pantalla Simulator, con botones para aplicar y quitar el escenario, y cierro la nueva división del cuerpo 3D sin tocar los IDs.
+- **El responsable de datos:** `scenarioEffects.json` y `applyScenario()` en inglés (opción A), y los efectos de los escenarios que faltan cuando puedas. Los valores clínicos los valida la responsable médica
+- **La responsable de la app:** conecto tu función a la pantalla Simulator, con botones para aplicar y quitar el escenario, y cierro la nueva división del cuerpo 3D sin tocar los IDs.

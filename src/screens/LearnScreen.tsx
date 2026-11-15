@@ -27,7 +27,7 @@ export function LearnScreen() {
           </table>
         </div>
       </Card>
-      <Card title="How SOSpesAI decides a colour">
+      <Card title="How SOSpesIA decides a colour">
         <ol className="small">
           <li>Every person has their own reference, built before launch with the same methods used in flight.</li>
           <li>In flight, each value is compared with the band expected for that person in space (mean ± 2 SD), not with Earth values. Example: blood pressure drops 8-10 mmHg in flight, so a lower value can be normal.</li>

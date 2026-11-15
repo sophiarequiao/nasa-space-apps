@@ -10,7 +10,7 @@ encrypted summary and the radiation of the mission chosen. The app opens it from
   unmodified; see `vendor/mediapipe/README.md`. The face and pose models are not in the repository: the page
   downloads them from Google the first time the camera is used.
 - What it shares with the app: when a check-in is sent in the lab, its numbers are kept in this browser
-  (`localStorage`, key `sospesai.lab.lastCheckin`). The Message screen offers to add them to the message to Earth.
+  (`localStorage`, key `sospesia.lab.lastCheckin`). The Message screen offers to add them to the message to Earth.
   Signals the app has no rule for travel in the message and do not colour the body.
 - The service worker of the app leaves `/lab/` alone: the lab is not cached for offline use.
 - Not a medical device. Experimental: checked with synthetic signals and a few recordings of one person.

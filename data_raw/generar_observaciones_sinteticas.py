@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 Genera observaciones SINTETICAS de todas las fuentes de a bordo para 4 tripulantes: 30 dias antes del lanzamiento (fase pre_vuelo) y 60 dias en vuelo,
-en el formato comun de SOSpesAI. No son datos reales de ningun astronauta.
+en el formato comun de SOSpesIA. No son datos reales de ningun astronauta.
 
-Efectos medios tomados de la literatura (ver PROPUESTA_SOSPESAI.md):
+Efectos medios tomados de la literatura (ver PROPUESTA_SOSPESIA.md):
   - Presion sistolica unos 8 mmHg por debajo en vuelo, FC sin cambio (Norsk 2015).
   - Sueno medio de unas 6,1 h en la ISS (Barger 2014).
   - CO2 de cabina en torno a 2,5 mmHg; limite ISS 3,0 mmHg (Law y Alexander).
@@ -72,7 +72,7 @@ for cm, (fc0, pas0) in TRIP.items():
         if renal:
             add(cm, d, 3, "dolor", 7, "0-10", "cuestionario", "autoinforme", "rinones")
 
-doc = {"_about": "Observaciones SINTETICAS de SOSpesAI (4 tripulantes, 30 dias previos al vuelo + 60 en vuelo, todas las fuentes). No son datos reales. "
+doc = {"_about": "Observaciones SINTETICAS de SOSpesIA (4 tripulantes, 30 dias previos al vuelo + 60 en vuelo, todas las fuentes). No son datos reales. "
                  "Rangos de laboratorio y unidades del biomarcador son ilustrativos. Licencia CC0. Generado con ayuda de IA (Claude, Anthropic).",
        "eventos_demo": ["CM-2 dias 30-36: sueno corto + autoinforme optimista", "CM-3 dia 44: fiebre + leucocitos altos", "CM-4 dia 52: colico renal"],
        "observaciones": obs}

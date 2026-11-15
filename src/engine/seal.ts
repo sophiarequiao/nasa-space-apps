@@ -26,7 +26,7 @@ export interface Receiver { open(frame: Uint8Array): Promise<OpenedFrame> }
 /** What the screens show after a message is sent. */
 export interface SealReport { clearBytes: number; wireBytes: number; counter: number; hex: string; opened: boolean }
 
-const LABEL = new TextEncoder().encode("SOSpesAI check-in v1"); // authenticated with every message, never encrypted
+const LABEL = new TextEncoder().encode("SOSpesIA check-in v1"); // authenticated with every message, never encrypted
 const IV_BYTES = 12, TAG_BYTES = 16;
 const USES: KeyUsage[] = ["encrypt", "decrypt"];
 

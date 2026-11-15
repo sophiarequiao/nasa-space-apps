@@ -1,6 +1,6 @@
 # NOTICE
 
-SOSpesAI · NASA Space Apps Challenge 2026 · Seville
+SOSpesIA · NASA Space Apps Challenge 2026 · Seville
 
 ## Licenses of this project
 
@@ -24,8 +24,9 @@ Checked with `npm run licenses` (license-checker) on 14 Nov 2026.
 
 Build-only tools (not shipped): vite (MIT), typescript (Apache-2.0), lightningcss (MPL-2.0, used only at build time by vite).
 
-No GPL or non-commercial dependency. The screens of the app download no camera/face model: the camera pulse uses
-the team's own code (POS method, Wang et al. 2017) and a simple skin-colour filter, without MediaPipe.
+No GPL or non-commercial dependency. The Check-in and Message screens measure the face (eyelids, facial movement,
+head posture) and the pulse with the team's modules shipped in `public/lab/`, which use MediaPipe Face Landmarker
+(Apache-2.0, see below). The video is processed on the device and never stored or sent.
 
 ## Sensor lab (`public/lab/`)
 
@@ -63,4 +64,7 @@ If the terms are not clear, replace it with a model built in code from simple th
 
 ## AI use
 
-Research, writing, code and the starter data were produced with AI assistance (Claude, Anthropic).
+Research, writing, code, tests and the starter data were produced with AI assistance (Claude, Anthropic).
+Sources were searched and cross-checked, and the pitch drafted and translated, with ChatGPT/Codex (OpenAI),
+Gemini and NotebookLM (Google). The 3D body model was generated with Tripo AI (see "3D model" above).
+No AI tool was used to create or modify NASA logos, flags or mission identifiers.

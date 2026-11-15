@@ -1,4 +1,4 @@
-// Shared data types for SOSpesAI. All data files live in public/data/ and are
+// Shared data types for SOSpesIA. All data files live in public/data/ and are
 // produced by scripts/build_data.py from the team's original files.
 
 export type Status = "green" | "amber" | "red" | "silent";

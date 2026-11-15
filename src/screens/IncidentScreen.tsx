@@ -209,7 +209,7 @@ function ProtocolView({ card }: { card: ConditionCard }) {
 
 function buildSummary(card: ConditionCard, crew: string, day: number, date: string, mission: string, signals: string[], lost: string[], decider: string, startedAt: number | null): string {
   const lines = [
-    `SOSpesAI SBAR | ${mission} | ${date} (mission day ${day}) | ${crew}`,
+    `SOSpesIA SBAR | ${mission} | ${date} (mission day ${day}) | ${crew}`,
     `S: Signals compatible with ${card.name.toLowerCase()}${startedAt ? `, onset logged ${new Date(startedAt).toISOString().slice(11, 16)} UTC` : ""}.`,
     `B: ${signals.slice(0, 8).join("; ") || "no data today"}.`,
     `A: Not a diagnosis. Capabilities lost: ${lost.length ? lost.join(", ") : "none"}. Authority: ${decider}.`,

@@ -1,6 +1,6 @@
 {
-  "name": "SOSpesAI · Astronaut health companion",
-  "short_name": "SOSpesAI",
+  "name": "SOSpesIA · Astronaut health companion",
+  "short_name": "SOSpesIA",
   "description": "Know your crew. Know your resources. Know your options. Know your time. Decision-support prototype, not a medical device.",
   "start_url": "./",
   "scope": "./",

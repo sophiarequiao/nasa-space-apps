@@ -1,7 +1,7 @@
-// SOSpesAI service worker: works offline after the first visit.
+// SOSpesIA service worker: works offline after the first visit.
 // Pages: network first, falling back to the cache. Everything else: cache first, refreshed in the background.
 // License: MIT.
-const CACHE = "sospesai-v2";
+const CACHE = "sospesia-v2";
 const CORE = [
   "./",
   "./index.html",

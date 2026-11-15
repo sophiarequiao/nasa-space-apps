@@ -1,5 +1,5 @@
 {
- "_about": "SOSpesAI condition cards v0.2. Example protocol steps, not medical advice and no doses. Three cards (renal colic, suspected sepsis, chemical eye burn) had a desk review by the health lead against public guidelines; every time to act stays a team planning value until a clinician validates it (status TO_VALIDATE). Packet sizes are engineering estimates. Drafted with AI assistance (Claude, Anthropic).",
+ "_about": "SOSpesIA condition cards v0.2. Example protocol steps, not medical advice and no doses. Three cards (renal colic, suspected sepsis, chemical eye burn) had a desk review by the health lead against public guidelines; every time to act stays a team planning value until a clinician validates it (status TO_VALIDATE). Packet sizes are engineering estimates. Drafted with AI assistance (Claude, Anthropic).",
  "_sources": {
   "imm_mars": "https://www.nasa.gov/wp-content/uploads/2026/08/mars-transit-iva.pdf",
   "jugular": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6902784",
