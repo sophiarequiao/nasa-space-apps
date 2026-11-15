@@ -20,7 +20,7 @@ const CAM_SHOWN: [string, string, string][] = [
 ];
 
 export function CheckinSimple() {
-  const { data, crewId, day, link, idx, addObservations, setScreen, statusFor } = useApp();
+  const { data, crewId, day, date, link, idx, addObservations, setScreen, statusFor } = useApp();
   const [phase, setPhase] = useState<"idle" | "rec" | "done">("idle");
   const [secs, setSecs] = useState(0);
   const [level, setLevel] = useState(0);
@@ -101,7 +101,8 @@ export function CheckinSimple() {
   function save() {
     const out: Observation[] = [];
     if (!synthetic) {
-      const t = new Date().toISOString();
+      // stamped at the end of the mission day, so today's own check-in counts over the day's sample data
+      const t = `${date}T23:59:59Z`;
       const o = (signal: string, value: number, unit: string, source: string, method: Observation["method"], region: RegionId): Observation =>
         ({ crew: crewId, phase: day < 0 ? "preflight" : "inflight", day, signal, value, unit, time: t, source, method, quality: 1, region, live: true });
       if (result?.features.speechRate) {
@@ -126,9 +127,11 @@ export function CheckinSimple() {
 
   // What the app's status engine says about today's check-in signals, against this person's own normal
   const CHECKED = ["speech_rate", "pause_fraction", "heart_rate", "reaction_lapses", "sleep", "mood", "pain"];
+  // a live check-in is judged on what was measured in it; the example message on the day's sample data
+  const judged = saved && saved.length ? saved.map((o) => o.signal) : CHECKED;
   const outside = saved
     ? Object.values(statusFor(crewId, day)).flatMap((r) => r.signals)
-        .filter((x) => CHECKED.includes(x.signal) && x.ageDays === 0 && (x.status === "amber" || x.status === "red"))
+        .filter((x) => judged.includes(x.signal) && x.ageDays === 0 && (x.status === "amber" || x.status === "red"))
     : [];
   const anyRed = outside.some((x) => x.status === "red");
 
@@ -177,6 +180,7 @@ export function CheckinSimple() {
             {result.features.speechRate > 0 && <div className="stat"><span className="tiny muted">Speech</span><b>{result.features.speechRate.toFixed(1)}</b> <span className="tiny">syll/s</span></div>}
             {result.features.speechRate > 0 && <div className="stat"><span className="tiny muted">Pauses</span><b>{Math.round(result.features.pauseFraction * 100)}</b> <span className="tiny">%</span></div>}
             {result.features.f0MedianHz && <div className="stat"><span className="tiny muted">Pitch</span><b>{Math.round(result.features.f0MedianHz)}</b> <span className="tiny">Hz</span></div>}
+            {camObs.length > 0 && !camObs.some((c) => c.signal === "heart_rate") && <div className="stat"><span className="tiny muted">Pulse</span><b>—</b> <span className="tiny">keep still, face the light</span></div>}
             {CAM_SHOWN.map(([sig, label, unit]) => { const x = camObs.find((c) => c.signal === sig); return x ? <div className="stat" key={sig}><span className="tiny muted">{label}</span><b>{x.value}</b> <span className="tiny">{unit}</span></div> : null; })}
           </div>
           {synthetic && <p className="tiny muted">Example from the synthetic data set.</p>}
