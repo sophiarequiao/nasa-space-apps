@@ -95,7 +95,7 @@ export function LiveHeartCard() {
             {bpm ?? "—"}<span className="v-unit"> bpm</span>
             {bpm && <span className="beat" style={{ animationDuration: `${60 / bpm}s`, background: color }} />}
           </div>
-          <div className="v-title">Heart rate <span className="live-tag">LIVE</span></div>
+          <div className="v-title">Heart rate <span className="live-tag">SIMULATED</span></div>
         </div>
         <span className={`badge b-${status}`}>{STATUS_WORDS[status]}</span>
       </summary>
