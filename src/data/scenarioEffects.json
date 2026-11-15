@@ -1,0 +1,291 @@
+{
+ "_about": "Scenario effects for SOSpesAI (links scenarios.json to observations). ILLUSTRATIVE clinical values, pending validation by Sophia S. 'set' = absolute value; 'sd' = in-flight mean + k * in-flight SD of that crew member. CC0.",
+ "start_date": "2026-11-01",
+ "hour_utc": 10,
+ "all_crew": [
+  "CM-1",
+  "CM-2",
+  "CM-3",
+  "CM-4"
+ ],
+ "signals": {
+  "heart_rate": {
+   "unit": "bpm",
+   "source": "camera_rppg",
+   "method": "estimated",
+   "region": "heart",
+   "decimals": 0
+  },
+  "bp_systolic": {
+   "unit": "mmHg",
+   "source": "bp_cuff",
+   "method": "clinical",
+   "region": "heart",
+   "decimals": 0
+  },
+  "bp_diastolic": {
+   "unit": "mmHg",
+   "source": "bp_cuff",
+   "method": "clinical",
+   "region": "heart",
+   "decimals": 0
+  },
+  "respiratory_rate": {
+   "unit": "breaths/min",
+   "source": "camera",
+   "method": "estimated",
+   "region": "lungs",
+   "decimals": 0
+  },
+  "spo2": {
+   "unit": "%",
+   "source": "bio_monitor",
+   "method": "clinical",
+   "region": "lungs",
+   "decimals": 0
+  },
+  "cabin_co2": {
+   "unit": "mmHg",
+   "source": "life_support",
+   "method": "clinical",
+   "region": "lungs",
+   "decimals": 2
+  },
+  "sleep": {
+   "unit": "h",
+   "source": "actigraph",
+   "method": "clinical",
+   "region": "brain",
+   "decimals": 1
+  },
+  "sleep_self_report": {
+   "unit": "1-5",
+   "source": "questionnaire",
+   "method": "self_report",
+   "region": "brain",
+   "decimals": 0
+  },
+  "mood": {
+   "unit": "1-5",
+   "source": "questionnaire",
+   "method": "self_report",
+   "region": "brain",
+   "decimals": 0
+  },
+  "reaction_lapses": {
+   "unit": "lapses",
+   "source": "reaction_test",
+   "method": "clinical",
+   "region": "brain",
+   "decimals": 0
+  },
+  "message_duration": {
+   "unit": "s",
+   "source": "microphone",
+   "method": "clinical",
+   "region": "brain",
+   "decimals": 0
+  },
+  "temperature": {
+   "unit": "°C",
+   "source": "thermometer",
+   "method": "clinical",
+   "region": "blood",
+   "decimals": 1
+  },
+  "glucose": {
+   "unit": "mg/dL",
+   "source": "glucometer",
+   "method": "clinical",
+   "region": "blood",
+   "decimals": 0
+  },
+  "wbc": {
+   "unit": "10^3/uL",
+   "source": "hemocue_wbc",
+   "method": "clinical",
+   "region": "blood",
+   "decimals": 1
+  },
+  "inflammation_marker": {
+   "unit": "mg/L (illustrative)",
+   "source": "bio_analyzer",
+   "method": "clinical",
+   "region": "blood",
+   "decimals": 1
+  },
+  "body_mass": {
+   "unit": "kg",
+   "source": "mass_device",
+   "method": "clinical",
+   "region": "musculoskeletal",
+   "decimals": 1
+  },
+  "urine_blood": {
+   "unit": "0-3",
+   "source": "urine_strip",
+   "method": "clinical",
+   "region": "kidneys",
+   "decimals": 0
+  },
+  "pain": {
+   "unit": "0-10",
+   "source": "questionnaire",
+   "method": "self_report",
+   "region": "kidneys",
+   "decimals": 0
+  },
+  "speech_rate": {
+   "unit": "syllables/s",
+   "source": "microphone",
+   "method": "estimated",
+   "region": "brain",
+   "decimals": 2
+  },
+  "pause_fraction": {
+   "unit": "fraction",
+   "source": "microphone",
+   "method": "estimated",
+   "region": "brain",
+   "decimals": 2
+  }
+ },
+ "effects": {
+  "renal_colic": {
+   "scope": "individual",
+   "changes": [
+    {
+     "signal": "urine_blood",
+     "set": 3
+    },
+    {
+     "signal": "pain",
+     "set": 7,
+     "region": "kidneys"
+    },
+    {
+     "signal": "heart_rate",
+     "sd": 3
+    }
+   ]
+  },
+  "sepsis": {
+   "scope": "individual",
+   "changes": [
+    {
+     "signal": "temperature",
+     "set": 38.8
+    },
+    {
+     "signal": "heart_rate",
+     "sd": 7
+    },
+    {
+     "signal": "respiratory_rate",
+     "set": 20
+    },
+    {
+     "signal": "bp_systolic",
+     "set": 95
+    },
+    {
+     "signal": "wbc",
+     "set": 14.2
+    },
+    {
+     "signal": "inflammation_marker",
+     "set": 48
+    }
+   ]
+  },
+  "sleep_fatigue": {
+   "scope": "individual",
+   "changes": [
+    {
+     "signal": "sleep",
+     "sd": -3
+    },
+    {
+     "signal": "speech_rate",
+     "sd": -4
+    },
+    {
+     "signal": "pause_fraction",
+     "sd": 3
+    },
+    {
+     "signal": "reaction_lapses",
+     "set": 6
+    },
+    {
+     "signal": "sleep_self_report",
+     "set": 5
+    }
+   ]
+  },
+  "low_mood": {
+   "scope": "individual",
+   "changes": [
+    {
+     "signal": "message_duration",
+     "set": 28
+    },
+    {
+     "signal": "mood",
+     "set": 2
+    },
+    {
+     "signal": "speech_rate",
+     "sd": -3
+    },
+    {
+     "signal": "pause_fraction",
+     "sd": 2.5
+    }
+   ]
+  },
+  "high_co2": {
+   "scope": "crew",
+   "changes": [
+    {
+     "signal": "cabin_co2",
+     "set": 3.4
+    },
+    {
+     "signal": "reaction_lapses",
+     "sd": 3
+    }
+   ]
+  },
+  "respiratory_failure": {
+   "scope": "individual",
+   "changes": [
+    {
+     "signal": "spo2",
+     "set": 88
+    },
+    {
+     "signal": "respiratory_rate",
+     "set": 26
+    },
+    {
+     "signal": "heart_rate",
+     "sd": 3
+    }
+   ]
+  },
+  "smoke_fire": {
+   "scope": "crew",
+   "changes": [
+    {
+     "signal": "spo2",
+     "set": 91
+    },
+    {
+     "signal": "respiratory_rate",
+     "set": 24
+    }
+   ]
+  }
+ }
+}

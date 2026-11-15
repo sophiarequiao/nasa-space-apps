@@ -7,6 +7,7 @@ import { addDays, getLink, nextBlackout, type LinkContext, type LinkState } from
 import { evaluateCrew, indexObservations, type ObsIndex, type RegionStatus } from "../engine/status";
 import { allItemStates, type ItemState, type ResourceOverrides } from "../engine/resources";
 import { SOURCE_DEVICE } from "../engine/signals";
+import { applyScenario } from "../engine/scenarioEffects";
 
 export const CREW: { id: CrewId; role: string }[] = [
   { id: "CM-1", role: "Commander" },
@@ -53,6 +54,10 @@ interface AppState {
 
   idx: ObsIndex;
   addObservations: (obs: Observation[]) => void;
+  /** simulator scenarios currently applied (their observations are in idx) */
+  activeScenarios: { key: string; scenarioId: string; crew: string; day: number; count: number }[];
+  applyScenarioFor: (scenarioId: string, crew: string, day: number) => number;
+  removeScenario: (key: string) => void;
   liveObservations: Observation[];
   statusFor: (crew: string, day?: number) => Record<RegionId, RegionStatus>;
 
@@ -108,6 +113,7 @@ export function AppStateProvider({ data, children }: { data: AppData; children: 
   const [selectedRegion, setSelectedRegion] = useState<RegionId | null>(null);
   const [incidentCardId, setIncidentCardId] = useState("renal_colic");
   const [liveObservations, setLive] = useState<Observation[]>([]);
+  const [scenarioApps, setScenarioApps] = useState<{ key: string; scenarioId: string; crew: string; day: number; obs: Observation[] }[]>([]);
   const [unavailable, setUnavailable] = useState<Set<string>>(new Set());
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
@@ -118,7 +124,17 @@ export function AppStateProvider({ data, children }: { data: AppData; children: 
   const link = useMemo(() => getLink(date, profile, linkCtx), [date, profile, linkCtx]);
   const blackout = useMemo(() => nextBlackout(date, profile, linkCtx, 800), [date, profile, linkCtx]);
 
-  const idx = useMemo(() => indexObservations([...data.observations.observations, ...liveObservations]), [data, liveObservations]);
+  const scenarioObs = useMemo(() => scenarioApps.flatMap((a) => a.obs), [scenarioApps]);
+  const idx = useMemo(() => indexObservations([...data.observations.observations, ...liveObservations, ...scenarioObs]), [data, liveObservations, scenarioObs]);
+  const applyScenarioFor = useCallback((scenarioId: string, crew: string, d: number) => {
+    const obs = applyScenario(scenarioId, crew, d, data.baselines);
+    if (!obs.length) return 0;
+    const key = `${scenarioId}|${crew}|${d}`;
+    setScenarioApps((prev) => [...prev.filter((a) => a.key !== key), { key, scenarioId, crew, day: d, obs }]);
+    return obs.length;
+  }, [data]);
+  const removeScenario = useCallback((key: string) => setScenarioApps((prev) => prev.filter((a) => a.key !== key)), []);
+  const activeScenarios = useMemo(() => scenarioApps.map(({ key, scenarioId, crew, day: d, obs }) => ({ key, scenarioId, crew, day: d, count: obs.length })), [scenarioApps]);
   const addObservations = useCallback((obs: Observation[]) => setLive((prev) => [...prev, ...obs]), []);
 
   const overrides = useMemo<ResourceOverrides>(() => ({ unavailable, quantities }), [unavailable, quantities]);
@@ -151,6 +167,7 @@ export function AppStateProvider({ data, children }: { data: AppData; children: 
     day, setDay, minDay, maxDay, date, dateOverride, setDateOverride,
     crewId, setCrewId, selectedRegion, setSelectedRegion, incidentCardId, setIncidentCardId,
     link, linkCtx, blackout, idx, addObservations, liveObservations, statusFor,
+    activeScenarios, applyScenarioFor, removeScenario,
     overrides, toggleUnavailable, setQuantity, resetResources, itemStates, failedSources,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

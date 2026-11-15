@@ -65,28 +65,31 @@ export function TodaySimple() {
         )}
 
         {todo.length > 0 && (
-          <section className="glass">
-            <p className="g-title">To do today</p>
+          <details className="glass g-fold">
+            <summary><span className="g-title">To do today</span><span className="g-count">{todo.length}</span></summary>
             <ol className="g-steps">{todo.map((t) => <li key={t.text} onClick={() => setSelectedRegion(t.region)}>{t.text}</li>)}</ol>
-          </section>
+          </details>
         )}
 
-        <section className="glass">
-          <p className="g-title">Daily message</p>
+        <details className="glass g-fold">
+          <summary>
+            <span className="g-title">Daily message</span>
+            <span className={`g-count ${messageToday ? "c-ok" : "c-todo"}`}>{messageToday ? "Done" : "To do"}</span>
+          </summary>
           <p className="g-text">{messageToday ? "Done today." : "Not recorded yet today."}</p>
-          {!messageToday && <button className="g-btn" onClick={() => setScreen("message")}>Record now</button>}
-        </section>
+          <button className="g-btn" onClick={() => setScreen("message")}>{messageToday ? "Record another" : "Record now"}</button>
+        </details>
 
         {grey.length > 0 && (
-          <section className="glass">
-            <p className="g-title">Not checked recently</p>
+          <details className="glass g-fold">
+            <summary><span className="g-title">Not checked recently</span><span className="g-count">{grey.length}</span></summary>
             {grey.map((r) => (
               <button key={r.id} className="g-row" onClick={() => setSelectedRegion(r.id)}>
                 <span className="dotc d-silent" />
                 <span><b>{REGION_SHORT[r.id]}</b><span className="g-sub">{regionActions(r.id, "silent")[0]}</span></span>
               </button>
             ))}
-          </section>
+          </details>
         )}
       </aside>
 
@@ -99,15 +102,15 @@ export function TodaySimple() {
           onSelect={(r) => setSelectedRegion(r === selectedRegion ? null : r)}
           neutral
           markers
+          floorRing
           transparent
           height={640}
         />
-        <div className="stage-ring" aria-hidden />
         <div className="stage-legend">
           <span><i className="dotc d-amber" /> Keep an eye on it</span>
           <span><i className="dotc d-red" /> Needs action</span>
           <span><i className="dotc d-silent" /> Not checked</span>
-          <span className="muted">Drag to turn · tap a part</span>
+          <span className="muted">Drag to turn · point at a part to see its name</span>
         </div>
       </section>
 

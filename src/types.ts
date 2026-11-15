@@ -23,6 +23,8 @@ export interface Observation {
   region: RegionId;
   /** true for values typed or measured live in the app (not synthetic) */
   live?: boolean;
+  /** id of the simulator scenario that produced it (removed with "Remove scenario") */
+  scenario?: string;
 }
 
 export interface DemoEvent { crew: string; days: [number, number]; label: string }

@@ -187,7 +187,7 @@ export function MessageScreen() {
                 {result.comparisons.map((c) => <li key={c.signal}><StatusPill status={c.status}>{c.label}</StatusPill> {c.text} <span className="muted tiny">(mean {c.mean.toFixed(2)})</span></li>)}
               </ul>
             ) : <p className="muted small">No reference yet.</p>}
-            <p className="tiny muted">Compared with {mean?.source ?? "—"}. We do not diagnose fatigue or stress; we only say how your voice compares with your own mean.</p>
+            <p className="tiny muted">Compared with {mean?.source ?? "—"}.</p>
             {result.suggestion && (
               <div className="banner info">
                 {result.suggestion}

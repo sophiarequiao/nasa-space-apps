@@ -33,14 +33,15 @@ export function VitalCard({ signal, second, title }: { signal: string; second?: 
   const value = last ? (second && last2 ? `${formatValue(signal, last.value)}/${formatValue(second, last2.value)}` : formatValue(signal, last.value)) : "—";
 
   return (
-    <section className="glass vital">
-      <div className="v-head">
+    // closed when all is fine; opens by itself when there is something to watch or act on
+    <details key={`${crewId}-${status}`} className="glass vital v-fold" open={status === "amber" || status === "red"}>
+      <summary className="v-head">
         <div>
           <div className="v-value">{value}<span className="v-unit"> {unit}</span></div>
           <div className="v-title">{title}</div>
         </div>
         <span className={`badge b-${status}`}>{STATUS_WORDS[status]}</span>
-      </div>
+      </summary>
       {pts.length > 1 ? (
         <svg viewBox={`0 0 ${W} ${H}`} className="v-chart" aria-hidden>
           {band && <rect x={P} width={W - 2 * P} y={y(band.band_max)} height={Math.max(1, y(band.band_min) - y(band.band_max))} className="v-band" />}
@@ -52,6 +53,6 @@ export function VitalCard({ signal, second, title }: { signal: string; second?: 
         </svg>
       ) : <p className="g-small">Not enough data yet.</p>}
       <div className="v-foot">{last ? (last.day === day ? "Today" : `${day - last.day} days ago`) : "Never measured"} · shaded = normal for you</div>
-    </section>
+    </details>
   );
 }

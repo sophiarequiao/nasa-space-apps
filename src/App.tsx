@@ -35,13 +35,6 @@ function Shell() {
         {!expert && screen === "learn" && <LearnScreen />}
         {expert && <ExpertScreens screen={screen} />}
       </main>
-      {(expert || ["message", "incident", "resources", "learn"].includes(screen)) && <footer className="footer">
-        <p>
-          <b>Decision-support prototype. Not a medical device. It does not diagnose.</b> Crew data are synthetic; inventory is fictional;
-          protocols are samples pending validation. Uses NASA data; not endorsed by NASA.
-        </p>
-        <p className="muted">SOSpesAI · NASA Space Apps Challenge 2026 · Seville · Code MIT · Texts CC BY 4.0 · Synthetic data CC0 · Built with AI assistance (Claude, Anthropic).</p>
-      </footer>}
     </div>
   );
 }
