@@ -6,6 +6,7 @@ import { Card, DeciderPill, Segmented, StatusPill, Tag } from "../components/ui"
 import { computeAuthority } from "../engine/authority";
 import { conditionCapabilities } from "../engine/resources";
 import { formatDuration } from "../engine/link";
+import { radiationFor } from "../engine/radiation";
 import type { CrewId } from "../types";
 
 const PRESET_DATES = [
@@ -25,6 +26,7 @@ export function SimulatorScreen() {
   const auth = card ? computeAuthority(card, link, data.assumptions) : null;
   const caps = card ? conditionCapabilities([card], data.capabilities, itemStates)[0] : null;
   const list = data.scenarios.filter((s) => filter === "all" || s.card);
+  const rad = radiationFor(data.radiation, profile.id);
 
   return (
     <div className="grid sim-grid">
@@ -77,6 +79,15 @@ export function SimulatorScreen() {
             : <p className="banner warn">No link: {link.noLinkReason}. Back in {formatDuration(link.waitMin)}.</p>}
           {link.distAu && <p className="tiny muted">Earth-Mars distance {link.distAu.toFixed(2)} au · Sun-Earth-Mars angle {link.sepDeg?.toFixed(1)}°</p>}
         </Card>
+        {rad && (
+          <Card title="Radiation on this mission" subtitle={rad.kind === "measured" ? "Measured by a NASA instrument" : rad.kind === "typical" ? "NASA's range for crews" : "NASA estimate"}>
+            <p>{rad.text}</p>
+            <p className="tiny muted">
+              Sources: {rad.sources.map((s, i) => <span key={s.url}>{i > 0 && "; "}<a href={s.url} target="_blank" rel="noopener" title={s.title}>{s.short}</a></span>)}.
+              {" "}Averages that change with shielding and the solar cycle and leave out a large solar storm. Context for the mission: it does not add up anybody's dose.
+            </p>
+          </Card>
+        )}
         {card && auth && caps ? (
           <Card title="Response" actions={<DeciderPill decider={auth.decider} />}>
             <p>{auth.explanation}</p>

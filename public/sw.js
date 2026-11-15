@@ -1,7 +1,7 @@
 // SOSpesAI service worker: works offline after the first visit.
 // Pages: network first, falling back to the cache. Everything else: cache first, refreshed in the background.
 // License: MIT.
-const CACHE = "sospesai-v1";
+const CACHE = "sospesai-v2";
 const CORE = [
   "./",
   "./index.html",
@@ -19,6 +19,7 @@ const CORE = [
   "./data/learn.json",
   "./data/scenarios.json",
   "./data/profiles.json",
+  "./data/radiation.json",
 ];
 
 self.addEventListener("install", (event) => {
