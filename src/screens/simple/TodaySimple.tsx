@@ -7,9 +7,10 @@ import { VitalCard } from "../../components/VitalCard";
 import type { RegionId, Status } from "../../types";
 import { REGION_SHORT, STATUS_WORDS, priority, regionActions, regionSentence } from "../../engine/plain";
 import { latestAt } from "../../engine/status";
+import { radiationFor } from "../../engine/radiation";
 
 export function TodaySimple() {
-  const { data, crewId, day, statusFor, selectedRegion, setSelectedRegion, setScreen, setIncidentCardId, idx } = useApp();
+  const { data, profile, crewId, day, statusFor, selectedRegion, setSelectedRegion, setScreen, setIncidentCardId, idx } = useApp();
   const status = statusFor(crewId, day);
   const colours = useMemo(() => {
     const m: Partial<Record<RegionId, Status>> = {};
@@ -22,6 +23,7 @@ export function TodaySimple() {
   const grey = regions.filter((r) => status[r.id].status === "silent");
   const urgentCard = red.length ? data.cards.find((c) => c.region === red[0].id) : undefined;
   const sel = selectedRegion ? data.regions.find((r) => r.id === selectedRegion) : undefined;
+  const rad = radiationFor(data.radiation, profile.id);
   const messageToday = latestAt(idx.get(crewId)?.get("message_duration"), day)?.day === day;
 
   const headline = red.length ? "Needs action now" : amber.length ? "Keep an eye on it" : "All good today";
@@ -79,6 +81,17 @@ export function TodaySimple() {
           <p className="g-text">{messageToday ? "Done today." : "Not recorded yet today."}</p>
           <button className="g-btn" onClick={() => setScreen("message")}>{messageToday ? "Record another" : "Record now"}</button>
         </details>
+
+        {rad && (
+          <details className="glass g-fold">
+            <summary>
+              <span className="g-title">Radiation on this mission</span>
+              <span className="g-count">{rad.rateMSvDay ? `${rad.rateMSvDay[0] === rad.rateMSvDay[1] ? rad.rateMSvDay[0] : `${rad.rateMSvDay[0]}-${rad.rateMSvDay[1]}`} mSv/day` : "NASA estimate"}</span>
+            </summary>
+            <p className="g-text">{rad.text.replace(/^Radiation: /, "")}</p>
+            <p className="g-small">Sources: {rad.sources.map((s, i) => <span key={s.url}>{i > 0 && "; "}<a href={s.url} target="_blank" rel="noopener" title={s.title}>{s.short}</a></span>)}. NASA averages for this mission, not your own dose.</p>
+          </details>
+        )}
 
         {grey.length > 0 && (
           <details className="glass g-fold">
