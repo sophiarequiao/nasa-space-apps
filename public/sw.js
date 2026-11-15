@@ -1,7 +1,7 @@
 // SOSpesAI service worker: works offline after the first visit.
 // Pages: network first, falling back to the cache. Everything else: cache first, refreshed in the background.
 // License: MIT.
-const CACHE = "sospesai-v1";
+const CACHE = "sospesai-v2";
 const CORE = [
   "./",
   "./index.html",
@@ -19,6 +19,7 @@ const CORE = [
   "./data/learn.json",
   "./data/scenarios.json",
   "./data/profiles.json",
+  "./data/radiation.json",
 ];
 
 self.addEventListener("install", (event) => {
@@ -34,6 +35,8 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET" || new URL(req.url).origin !== self.location.origin) return;
+  // The sensor lab (public/lab/) is a separate static page: the browser serves it, and it never replaces the cached app shell.
+  if (new URL(req.url).pathname.includes("/lab/")) return;
   if (req.mode === "navigate") {
     event.respondWith(
       fetch(req)

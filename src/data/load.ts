@@ -1,7 +1,7 @@
 // Loads every data file from public/data (cached by the service worker for offline use).
 import type {
   AppData, BaselinesFile, Capability, ConditionCard, InventoryFile, LearnTopic, LinkAssumptions,
-  MarsLinkFile, MissionProfile, ObservationsFile, Region, Scenario,
+  MarsLinkFile, MissionProfile, ObservationsFile, RadiationFile, Region, Scenario,
 } from "../types";
 
 const BASE = import.meta.env.BASE_URL;
@@ -13,7 +13,7 @@ async function getJSON<T>(name: string): Promise<T> {
 }
 
 export async function loadAppData(): Promise<AppData> {
-  const [observations, baselines, marsLink, cardsFile, inventory, capsFile, regionsFile, learnFile, scenariosFile, profilesFile] =
+  const [observations, baselines, marsLink, cardsFile, inventory, capsFile, regionsFile, learnFile, scenariosFile, profilesFile, radiation] =
     await Promise.all([
       getJSON<ObservationsFile>("observations.json"),
       getJSON<BaselinesFile>("baselines.json"),
@@ -25,6 +25,7 @@ export async function loadAppData(): Promise<AppData> {
       getJSON<{ topics: LearnTopic[] }>("learn.json"),
       getJSON<{ scenarios: Scenario[] }>("scenarios.json"),
       getJSON<{ profiles: MissionProfile[]; assumptions: LinkAssumptions }>("profiles.json"),
+      getJSON<RadiationFile>("radiation.json"),
     ]);
   return {
     observations,
@@ -39,5 +40,6 @@ export async function loadAppData(): Promise<AppData> {
     scenarios: scenariosFile.scenarios,
     profiles: profilesFile.profiles,
     assumptions: profilesFile.assumptions,
+    radiation,
   };
 }
