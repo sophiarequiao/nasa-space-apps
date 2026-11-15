@@ -4,7 +4,7 @@ A daily health check-in for crews far from Earth. It runs in a browser on one la
 
 It does two things:
 
-1. **It measures with what a crew already has: a microphone and a camera.** Thirty seconds of speech, one held "aaaa" and the laptop camera give about twenty signals: speech rate, pauses, voice steadiness, breath support, blinks, eyelid closure, yawns and an experimental pulse. Each signal is compared with that person's own baseline, never with a population average.
+1. **It measures with what a crew already has: a microphone and a camera.** Thirty seconds of speech, one held "aaaa" and the laptop camera give more than twenty signals: speech rate, pauses, voice steadiness, breath support, blinks, eyelid closure, yawns, head posture and an experimental pulse. Each signal is compared with that person's own baseline, never with a population average.
 2. **It works out who should decide: Earth, both, or the crew.** For a mission, a date and a medical situation, it compares how long Earth needs to answer (light time, link outages, ground response) with how long the crew can wait.
 
 Built in Seville for the NASA Space Apps Challenge 2026, challenge *Create Health Monitoring Software for Astronauts on Space Missions*.
@@ -39,6 +39,16 @@ Between November 2026 and December 2040 the one-way light time goes from 3 min 1
 
 NASA's plan for [Earth-independent medical operations](https://ntrs.nasa.gov/api/citations/20230016189/downloads/EIMO_OVERVIEW_IWS24.docx) expects ground advice to be "significantly delayed" on such missions and names, as an advanced feature of its future decision-support system, passive monitoring that picks up early warning signs. SOSpesAI is a small working sketch of that idea.
 
+## Body language, encryption and AI: what is really inside
+
+Three things health apps often claim. This is what stands behind each one here.
+
+**Body language.** The camera already follows the face, so the same model also gives the posture of the head: how much it moves, how far it tilts to one side and how often it settles in a new position. An optional second model adds the shoulders and the trunk: shoulder tilt, trunk movement and how high the head sits over the shoulders, which drops when a person slumps. These are numbers about behaviour, compared with the person's own usual. They cannot read pain, mood or intent. Two published results explain why they are worth watching. People moved their head less, and more slowly, when their depression was more severe ([Girard et al., 2014](https://pmc.ncbi.nlm.nih.gov/articles/PMC4217695)). And work funded by NASA through the National Space Biomedical Research Institute followed the face with a camera to detect stress during demanding tasks; it was right 68 % of the time in 60 healthy adults ([Dinges et al., 2005](https://www.ic.unicamp.br/~siome/papers/dinges-asma05.pdf); Metaxas et al., 2007, doi:10.1016/j.actaastro.2006.09.003). In weightlessness the body takes a "neutral body posture", and NASA's study on shuttle mission STS-57 found that it differs from one person to the next ([NASA Spinoff](https://spinoff.nasa.gov/node/11046)). One more reason to compare each person only with themselves.
+
+**Encryption.** Audio and video never leave the browser. What leaves is a summary in numbers, and it is encrypted on the device before it is sent: AES with a 256-bit key in Galois/Counter Mode, through the Web Crypto API that every browser carries. It is the choice of CCSDS, the body that writes the data standards of the space agencies, for new missions ([CCSDS 352.0-B-2](https://public.ccsds.org/pubs/352x0b2.pdf)): AES, 256-bit keys, and GCM when a message must be both secret and authenticated. Each message carries a counter that only goes up, so a key never meets the same starting value twice and a replayed message is refused. Encryption adds 28 bytes to a summary of 2 to 3 kB. NASA's own standard asks for this privacy: medical communications that travel through the spacecraft link "shall be considered private communication" ([NASA-STD-3001 Vol. 1, V1 6003](https://www.nasa.gov/reference/6-0-medical-operations/)), and when a mission has communication delays it allows stored and forwarded messages instead of live calls. What this is not: key management. The demo creates its key in the browser; a mission would load it before launch into protected hardware.
+
+**AI.** Two kinds, kept apart. *Seeing* is done by neural networks that run inside the browser: Google's MediaPipe Face Landmarker gives 478 points of the face and 52 expression scores for every video frame, and the optional Pose Landmarker gives 33 points of the body. Their model cards state the Apache-2.0 licence, and the card of the face model says its output does not identify people and is not meant for life-critical decisions. *Judging* is not a black box. The app learns what is normal for one person from that person's own check-ins, then measures how far today is from it, signal by signal and all together. NASA uses the same principle to watch the space station's systems from the flight control room: its Inductive Monitoring System learns normal behaviour from the system's own data and reports the distance from it ([NASA Ames](https://ntrs.nasa.gov/api/citations/20090037065/downloads/20090037065.pdf)). Ours is the simplest form of that idea, one centre and one spread per signal, with three rules anyone can read: one signal far from the baseline, two signals clearly away, or four signals a little away at the same time and from two different sensors. Nothing is trained on crew data, and there is no generative AI in the product.
+
 ## Try it in two minutes
 
 ```
@@ -64,6 +74,9 @@ Open `http://localhost:8000/tools/demo.html` in a recent Chrome or Edge. Any sta
 | NASA [Moon Fact Sheet](https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html) | Earth to Moon distance, 384,400 km, 1.28 s | `src/engine/link.js` |
 | NASA Human Research Program, [Integrated Medical Model v3.0 report](https://www.nasa.gov/wp-content/uploads/2026/08/mars-transit-iva.pdf) for a 16-month Mars transit with four crew (2017) | Which situations are on the cards: its top drivers of evacuation (eye chemical burn, skin infection, urinary infection, shingles, kidney stone) and of loss of crew life (sepsis, smoke inhalation, stroke, appendicitis) | `data/condition_cards.json`, field `nasa_basis` |
 | NASA Office of the Chief Health and Medical Officer, [Urinary Health technical brief](https://www.nasa.gov/wp-content/uploads/2025/01/ochmo-mtb-003-urinary-health.pdf) (OCHMO-MTB-003) | Why a kidney stone is the main example: 43 stone events recorded in 29 crew members, and the second most likely reason for an emergency evacuation from the station in NASA's model | `data/condition_cards.json` |
+| NASA Space Flight Human-System Standard, [NASA-STD-3001 Vol. 1, section 6.2](https://www.nasa.gov/reference/6-0-medical-operations/), private medical communication | Why the summary is encrypted before it leaves, and why a stored message is acceptable when the link has a delay | `src/engine/seal.js` |
+| NASA Ames, [Inductive Monitoring System](https://ntrs.nasa.gov/api/citations/20090037065/downloads/20090037065.pdf), used in the space station flight control room | The principle of the early warning: learn normal from the system's own data, measure the distance from it | `src/engine/earlyWarning.js` |
+| NASA [neutral body posture](https://spinoff.nasa.gov/node/11046) research (Skylab, STS-57) | Why posture is compared with the person's own baseline and not with a standard posture | `src/sensors/face.js`, `src/sensors/body.js` |
 | NASA paper on medical risk for a long lunar mission with the IMPACT tool, [NTRS 20240011063](https://ntrs.nasa.gov/citations/20240011063) | Background for the evacuation notes of the lunar profiles | `data/mission_profiles.json` |
 
 The Integrated Medical Model report was run with the medical kit of the space station and itself advises caution when reading it for Mars; we use it only to choose which situations to show. The evacuation times in the mission profiles are still being confirmed against the full text of the lunar paper.
@@ -81,7 +94,10 @@ This project uses NASA data and is not endorsed by NASA. No NASA logos or insign
 | Eyelids | Synthetic blink scores; 3 minutes of one person | Blink rate 8 per minute at rest and 19 blinking on purpose; eyelid closure 1 % at rest and 36 % with slow closures | Looking down reads as eyes closing |
 | Pulse from the camera (experimental) | Synthetic signals, 150 noise-only simulations, two 3-minute recordings of one person | Shows nothing on noise; follows the recovery after exercise from 139 to 104 beats per minute in 45 s | No reference device yet; it stays silent rather than guess, so some check-ins have no pulse |
 | Face symmetry check (experimental) | Synthetic scores only | The logic behaves as designed | Not tried on a real case; wording to be approved by the health lead |
-| Early warning | Synthetic cases | As designed | The rules (2 and 3 standard deviations) are team assumptions |
+| Head posture and movement (experimental) | Synthetic positions; two real recordings of one person (still, talking, moving); a reference portrait turned and moved by known amounts in front of the real model | Head movement 1.1 to 2.8 % of the face width per second still, 3.8 to 9.4 talking, 10.8 to 12.2 moving. A turn of 12° reads 11.8°, a sway of 5 % per second reads 4.6, one move to a new place reads as one posture shift | Not yet tried live with these numbers on screen; the camera position changes the reading; fast nods are averaged out; nothing says what a change means |
+| Shoulders and trunk (experimental, optional) | Synthetic poses; the same reference portrait | A turn of 12° reads 12.1°; the head height over the shoulders stays within 0.1 point | Never tried on a live person by the team; needs both shoulders in view; a second model slows an old laptop |
+| Encryption of the summary | Test Cases 13 and 14 of the GCM specification; same bytes as OpenSSL; a changed bit, another key and a replayed message | 20 of 20 checks as expected | No key management; not audited |
+| Early warning | 15 synthetic cases | As designed | The rules (1.5, 2 and 3 standard deviations) are team assumptions; the rule for several small changes is new and not yet reviewed by the health lead |
 
 Run the checks yourself (Node 18 or later, nothing to install):
 
@@ -91,10 +107,14 @@ node tools/test_link.mjs
 node tools/test_authority.mjs
 node tools/test_voice.mjs
 node tools/test_vowel.mjs
-node tools/test_face.mjs
+node tools/test_face.mjs           # eyelids, facial movement, head posture
+node tools/test_body.mjs           # shoulders and trunk
 node tools/test_early_warning.mjs
 node tools/test_rppg.mjs
+node tools/test_seal.mjs           # encryption: published vectors, OpenSSL, tampering, replay
 ```
+
+In a browser, `tools/test_camera_models.html` checks the two camera models without a camera: it shows them a reference portrait that is turned and moved by known amounts, and compares what they report (about 70 seconds, needs internet).
 
 ## What is in the repository
 
@@ -103,8 +123,10 @@ node tools/test_rppg.mjs
 | `src/engine/link.js` | Light time and link outages for each mission |
 | `src/engine/authority.js` | Who decides: Earth, both or the crew |
 | `src/engine/earlyWarning.js` | Change from the personal baseline: silent, green or amber |
+| `src/engine/seal.js` | Encryption of the summary that is sent to Earth (AES-256-GCM) |
 | `src/sensors/voice.js` | The 30 second voice message and the held vowel |
-| `src/sensors/face.js` | Eyelids, yawns, facial movement and the guided symmetry check |
+| `src/sensors/face.js` | Eyelids, yawns, facial movement, head posture and the guided symmetry check |
+| `src/sensors/body.js` | Optional: shoulders and trunk |
 | `src/sensors/rppg.js` | Experimental pulse from the camera |
 | `data/` | Mars link table 2026-2040, Horizons reference, mission profiles, condition cards |
 | `docs/` | Figure of the Mars link, drawn from the table |
@@ -117,19 +139,22 @@ The modules are plain ES modules with no dependencies, so an app can import them
 
 ## Privacy
 
-Audio and video are analysed inside the browser. They are never stored and never sent anywhere; only the resulting numbers are kept, in the browser's local storage. Test recordings are kept out of the repository.
+Audio and video are analysed inside the browser. They are never stored and never sent anywhere; only the resulting numbers are kept, in the browser's local storage. The summary that is sent to Earth is encrypted on the device first (`src/engine/seal.js`). The baseline kept in the browser is not encrypted. Test recordings are kept out of the repository.
 
-The only network request the demo makes is the first download of the MediaPipe face model (about 3.7 MB) from Google's public model storage. Place the file in `vendor/mediapipe/` to run fully offline (see `vendor/mediapipe/README.md`).
+The only network requests the demo makes are the first download of the MediaPipe face model (3.8 MB) and, if the option for shoulders and trunk is on, of the pose model (5.8 MB), both from Google's public model storage. Place the files in `vendor/mediapipe/` to run fully offline (see `vendor/mediapipe/README.md`).
 
 ## Licences
 
 - Our code and data files: MIT (see `LICENSE`).
-- MediaPipe Tasks Vision 1.2.3: Apache-2.0, vendored unmodified in `vendor/mediapipe/`. The face model file is downloaded from Google and is not redistributed here; its own licence is being confirmed (see `vendor/mediapipe/README.md`).
+- MediaPipe Tasks Vision 1.2.3: Apache-2.0, vendored unmodified in `vendor/mediapipe/`. The model files are downloaded from Google and are not redistributed here. Their model cards state the Apache License 2.0: [Face Mesh V2](https://storage.googleapis.com/mediapipe-assets/Model%20Card%20MediaPipe%20Face%20Mesh%20V2.pdf), [Blendshape V2](https://storage.googleapis.com/mediapipe-assets/Model%20Card%20Blendshape%20V2.pdf) and [BlazePose GHUM 3D](https://storage.googleapis.com/mediapipe-assets/Model%20Card%20BlazePose%20GHUM%203D.pdf).
+- Encryption: the Web Crypto API of the browser. No cryptography library is included.
 - Fonts: system fonts only. No images or icons from third parties.
 
 ## Use of AI
 
 The code, the tests and this documentation were drafted with AI assistance (Claude, by Anthropic) and reviewed and tested by the team. Every source file says so in its header. There are no AI-generated images, audio or video in this repository.
+
+Inside the product, the AI is two pre-trained neural networks from Google's MediaPipe that read the camera on the device. There is no generative AI in the product and nothing is trained on crew data.
 
 ## Team
 

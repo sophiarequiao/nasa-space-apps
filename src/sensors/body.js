@@ -12,7 +12,7 @@
 //   options: { crew, window_s (default 60), every_ms (default 150), modelUrl, wasmUrl }
 // It does not open the camera: give it a <video> that is already playing (the one face.js uses). It looks about 7 times
 // a second, to leave the processor to the face and the pulse.
-// The model (5.5 MB) is read from vendor/mediapipe/pose_landmarker_lite.task if you put it there, otherwise from
+// The model (5.8 MB) is read from vendor/mediapipe/pose_landmarker_lite.task if you put it there, otherwise from
 // Google's public address. Either way the video stays in the browser.
 // What it is: behaviour compared with the person's own usual. It cannot tell pain, mood or illness from a posture.
 // In microgravity there is no single correct posture (NASA neutral body posture; the STS-57 study found it differs

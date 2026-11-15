@@ -9,6 +9,8 @@ Code, identifiers and data keys are in English. Not a medical device: the module
 | `src/engine/authority.js` | `computeAuthority({ profile, dateISO, condition })` | `{ A, whoDecides: 'EARTH'\|'SHARED'\|'CREW', explanation, earthResponse_min, tCrit_min, breakdown_min, mode, liveGuidance, link, profile, condition }` |
 | `src/sensors/voice.js` | `analyzeVoice(audioBlob, baseline, { crew, time })` | `{ observations: [...], summary: { quality, snr_db, z, changes, text } }` |
 | `src/sensors/rppg.js` (optional) | `startPulse(videoEl, onResult, { crew })` / `stopPulse()` | calls `onResult({ state, bpm, bpm_raw, quality, reason, observation, waveform })` once per second |
+| `src/sensors/body.js` (optional) | `startBody(videoEl, onResult, { crew })` / `stopBody()` | calls `onResult({ state, shoulder_tilt, trunk_movement, head_height, observations })` once per second |
+| `src/engine/seal.js` | `createSender(key, id).seal(object)` / `createReceiver(key).open(frame)` | `{ frame, counter, clearBytes }` / `{ payload, sender, counter }` |
 
 ## Loading data
 
@@ -53,6 +55,8 @@ node tools/check_horizons.mjs   # the Mars table against 201 days from NASA/JPL 
 node tools/test_authority.mjs   # 14 reference cases from motor_autoridad.py
 node tools/test_voice.mjs       # synthetic speech with known rate, pauses and pitch
 node tools/test_rppg.mjs        # synthetic pulse signals: 55, 72, 110 bpm, noise, slow motion, low light
+node tools/test_body.mjs        # shoulders and trunk, synthetic poses
+node tools/test_seal.mjs        # encryption: GCM specification vectors, OpenSSL, tampering, replay
 ```
 
 **End-to-end demo:** `tools/demo.html` chains the modules: voice message → measures against the personal baseline → summary travelling to Earth with the real light time → authority dial per mission and situation.
@@ -125,3 +129,47 @@ const r = symmetryIndex(frames, 'mouthSmileLeft', 'mouthSmileRight');   // { lef
   The demo stores it as `smile_asymmetry` and `brow_asymmetry` (%), compared with the person's own baseline. A new difference changes the early-warning suggestion to "call the crew medical officer and open the suspected-stroke checklist".
 - Status: logic tested with synthetic scores only. Not yet tried on a real face, no clinical validation, and the wording of the suggestion must be confirmed by the health lead. "Left" and "right" are the person's own sides as MediaPipe names them (TO CHECK on a real face).
 - Tried and dropped: breathing rate from the movement of the face box. On two real recordings the candidates did not agree with each other, so it is not offered.
+
+## Head posture and movement (`src/sensors/face.js`)
+
+The first step of "body language", at no extra cost: `startFace` already follows the face, and now also reports
+
+| Signal | Unit | Meaning |
+|---|---|---|
+| `head_movement` | % of the face width per second | How far the head travels. Averages over 0.5 s remove the jitter of the landmarks, so it is the slow movement of posture: a still head reads close to 0, fast nods are mostly averaged out |
+| `head_tilt` | degrees | Median sideways tilt (line between the outer eye corners). Positive: towards the person's left shoulder |
+| `posture_shifts` | per minute | Times the head settles in a new place (a quarter of a face width away, or 8° of tilt) and stays for 1.5 s |
+
+They arrive in `observations` like the eyelid signals (`source: 'camera_face'`) and in `result.posture`. `onFrame` also gets `roll`. The pure core is `createPostureTracker()`; `node tools/eval_posture.mjs recording.csv` checks it on a recording made with `tools/record_rppg.html`.
+
+Checked: two real recordings of one person (movement 1.1 to 2.8 still, 3.8 to 9.4 talking, 10.8 to 12.2 moving) and a reference portrait turned by known angles (0, ±15, 30° read −0.8, 14.4, −16.1, 29.1). EXPERIMENTAL: the camera position changes the reading, so the baseline must be taken with the same set-up.
+
+## Shoulders and trunk (`src/sensors/body.js`), optional
+
+```js
+import { startBody, stopBody } from './src/sensors/body.js';
+await startBody(videoEl, (r) => { /* r.state, r.observations */ }, { crew: 'CM-2' });   // the video must already be playing
+stopBody();
+```
+
+A second MediaPipe model (Pose Landmarker lite, Apache-2.0, 5.8 MB, read from Google unless the file is in `vendor/mediapipe/`). It looks about 7 times a second and reports `shoulder_tilt` (degrees, positive: left shoulder lower), `trunk_movement` (% of the shoulder width per second) and `head_height` (% of the shoulder width: how high the ears sit over the shoulder line; it drops when the person slumps). Observations carry `source: 'camera_body'`. It does not open or close the camera. Never tried on a live person by the team yet: keep it behind an option.
+
+`tools/test_camera_models.html` runs both camera models on a reference portrait that is turned and moved by known amounts, without a camera.
+
+## Encrypted summary (`src/engine/seal.js`)
+
+```js
+import { newMissionKey, createSender, createReceiver, toHex } from './src/engine/seal.js';
+const key = await newMissionKey();                 // AES-256, cannot be exported from the browser
+const tx = createSender(key, 1), rx = createReceiver(key);
+const { frame, counter, clearBytes } = await tx.seal({ crew: 'CM-2', flag: 'amber', observations });
+const { payload } = await rx.open(frame);          // throws if a bit was changed, the key is another one, or it is a replay
+```
+
+`frame` is a `Uint8Array`: 12 bytes of IV (32 bits of sender + 64 bits of counter), the ciphertext and a 16-byte tag, always 28 bytes more than the clear JSON. AES-256-GCM through the Web Crypto API, as CCSDS 352.0-B-2 recommends for space links; the counter follows the deterministic IV of NIST SP 800-38D and also stops replays. It needs a secure page (https or localhost). No key management: the demo creates the key when the page opens. The baseline in `localStorage` is not encrypted.
+
+## Early warning: what changed (`src/engine/earlyWarning.js`)
+
+- New signals: `head_movement`, `head_tilt`, `posture_shifts`, `shoulder_tilt`, `trunk_movement` (both directions count) and `head_height` (only lower counts).
+- New rule: amber also when 4 or more signals are 1.5 sd or more away and they come from at least 2 sensors. For this rule the face and the body are one sensor ("camera"); the microphone and the camera pulse are two more. To be reviewed by the health lead.
+- The result now has `rule` (`'strong'`, `'several'`, `'pattern'` or `null`) and `pattern: { moved, sources, distance }`. `distance` is the root mean square of the deviations of all usable signals, in standard deviations, counting only the direction that matters. `flagged` holds the signals behind the verdict.
