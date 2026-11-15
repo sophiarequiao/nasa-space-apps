@@ -6,8 +6,7 @@ import { analyzeVoice, compareVoice, loadVoiceHistory, meanFromHistory, saveVoic
 import type { RppgEstimate } from "../../sensors/rppg";
 import { formatDuration } from "../../engine/link";
 import { sealForEarth } from "../../engine/seal";
-import { LAB_URL, labLabel, labObservations, readLab, usableLabValues, watchLab } from "../../sensors/lab";
-import { signalLabel } from "../../engine/signals";
+import { LAB_URL, labObservations, readLab, usableLabValues, watchLab } from "../../sensors/lab";
 import { latestAt } from "../../engine/status";
 import type { Observation, RegionId } from "../../types";
 import { CameraPulse, ReactionTest } from "../MessageScreen";
@@ -130,6 +129,8 @@ export function CheckinSimple() {
       <div className="row wrap gap">
         <button className="linkbtn small" onClick={example}>No microphone? Use {crewId}'s example message</button>
         <label className="check small"><input type="checkbox" checked={camera} onChange={(e) => setCamera(e.target.checked)} /> Also take my pulse with the camera (experimental)</label>
+        <a className="linkbtn small" href={LAB_URL} target="_blank" rel="noopener">Camera check: eyes and posture</a>
+        {labValues.length > 0 && <label className="check small"><input type="checkbox" checked={useLab} onChange={(e) => setUseLab(e.target.checked)} /> Add my camera check</label>}
       </div>
       {error && <p className="banner warn small">{error}</p>}
       {camera && <CameraPulse onEstimate={setPulse} />}
@@ -160,19 +161,6 @@ export function CheckinSimple() {
       )}
 
       <section className="panel">
-        <h3>Camera check (optional)</h3>
-        <p className="small">Look at the camera and talk for 30 seconds. It compares your eyelids, head posture, shoulders and voice with your own usual. It opens in a new tab; come back here when you have sent it.</p>
-        <a className="btn" href={LAB_URL} target="_blank" rel="noopener">Open the camera check</a>
-        {labValues.length > 0 ? (
-          <>
-            <p><label className="check"><input type="checkbox" checked={useLab} onChange={(e) => setUseLab(e.target.checked)} /> Add my camera check to this message ({labValues.length} values, {new Date(lab!.saved_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})</label></p>
-            {useLab && <p className="tiny muted">{labValues.map((x) => `${labLabel(x.signal) ?? signalLabel(x.signal)} ${x.value} ${x.unit}`).join(" · ")}</p>}
-          </>
-        ) : lab && lab.mode !== "live" ? <p className="tiny muted">Your last camera check was a simulation, so it is not added.</p> : null}
-        <p className="tiny muted">Measured on this device; only numbers are kept. Experimental: it does not colour the body.</p>
-      </section>
-
-      <section className="panel">
         <h3>How are you today?</h3>
         <div className="quick-q">
           <span>Mood</span>
@@ -196,7 +184,7 @@ export function CheckinSimple() {
       <p className="center small muted">
         {sent
           ? `${link.hasLink ? `Earth receives it in about ${formatDuration(link.owltS / 60)}.` : `No contact now: it goes out in ${formatDuration(link.waitMin)}.`}${sealed ? " It travels encrypted." : ""}`
-          : "Only numbers are sent, never your voice or face, and they leave encrypted. You decide what goes."}
+          : "Only numbers are sent, never your voice or face. You decide what goes."}
       </p>
     </div>
   );
