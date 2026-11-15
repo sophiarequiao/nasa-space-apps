@@ -30,6 +30,9 @@ computeAuthority({ profile: 'mars_surface', dateISO: '2026-11-15T16:30:00Z', con
 - Mission profiles: `iss`, `lunar_orbit`, `moon_relay`, `moon_south_pole`, `mars_transit`, `mars_surface` (aliases `moon`, `mars`), and `custom`.
 - Any other mission: `computeAuthority({ profile: 'custom', condition, custom: { owlt_s: 240 } })` — you set the one-way light time (and optionally `hasLink: false, wait_s`).
 - `condition` is a card id (`renal_colic`, `suspected_sepsis`, `eye_chemical_burn`…) or an object `{ t_crit_min, name?, packet_kB? }`.
+- The result's `condition` also carries the card's example content for the screen: `no_regret` (steps to start now), `red_flags`, `nasa_basis`, `t_crit_basis`, `sources` (`[{ title, url }]`) and `review`.
+- `linkRange()` in `link.js` gives the first and last day of the Mars table, `{ start: '2026-11-01', end: '2040-12-31' }`.
+- `node tools/make_link_figure.mjs` redraws `docs/mars_link_2026_2040.svg` from the table.
 
 ## Observation format (voice)
 

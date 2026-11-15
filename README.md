@@ -13,6 +13,8 @@ Built in Seville for the NASA Space Apps Challenge 2026, challenge *Create Healt
 
 ## Why "who decides" changes with distance
 
+In January 2026 the International Space Station had its [first medical evacuation](https://www.news4jax.com/news/florida/2026/01/15/nasa-sends-4-astronauts-back-to-earth-in-first-medical-evacuation/): the crew was back on Earth less than eleven hours after undocking. On the way to Mars that option does not exist, and even advice arrives late.
+
 On 15 November 2026 a message takes 654 seconds, just under 11 minutes, to travel from Mars to Earth. The fastest possible answer to a medical question therefore takes about 37 minutes: almost 22 minutes of light travel there and back, plus the time the ground team needs to read and reply (we assume 15 minutes). From 13 to 29 March 2028 Mars is within 2° of the Sun as seen from Earth and there is no reliable link at all.
 
 | Situation (time to act) | Space station: Earth answers in 15 min | Mars surface, 15 Nov 2026: 37 min | Mars surface, 20 Mar 2028: no link for 9 more days |
@@ -29,6 +31,12 @@ The engine reduces each case to one number, `A = time for Earth's answer / time 
 
 The times to act, the 15 minute ground response and the two thresholds are team assumptions. A clinician has not validated them yet; they are marked `TO_VALIDATE` in `data/condition_cards.json`.
 
+![One-way light time between Mars and Earth for every day from November 2026 to December 2040, with the seven periods without link](docs/mars_link_2026_2040.svg)
+
+Between November 2026 and December 2040 the one-way light time goes from 3 min 10 s (September 2035) to 22 min 15 s (August 2034). The link is lost seven times, for 10 to 17 days, when Mars passes behind the Sun. The figure is drawn from the table in this repository with `node tools/make_link_figure.mjs`.
+
+NASA's plan for [Earth-independent medical operations](https://ntrs.nasa.gov/api/citations/20230016189/downloads/EIMO_OVERVIEW_IWS24.docx) expects ground advice to be "significantly delayed" on such missions and names, as an advanced feature of its future decision-support system, passive monitoring that picks up early warning signs. SOSpesAI is a small working sketch of that idea.
+
 ## Try it in two minutes
 
 ```
@@ -39,7 +47,7 @@ python -m http.server 8000
 
 Open `http://localhost:8000/tools/demo.html` in a recent Chrome or Edge. Any static file server works; Python is only used to serve the files.
 
-1. At the top, choose a mission, a date and a situation. The page shows the light time, a to-scale line between the two worlds and the verdict.
+1. At the top, choose a mission, a date and a situation. The page shows the light time, a to-scale line between the two worlds, the calendar of the whole table (click any day) and the verdict, with the steps to start now and the red flags of that situation.
 2. In the daily check-in choose **Simulated, rested** or **Simulated, tired** to see it work without a camera. With **Live sensors**, allow the microphone and the camera and talk for 30 seconds.
 3. The read-out places each signal against the personal baseline. The baseline exists after two saved check-ins and is kept only in this browser.
 4. **Send this check-in to Earth** shows the summary travelling with the real light time of that date.
@@ -53,6 +61,7 @@ Open `http://localhost:8000/tools/demo.html` in a recent Chrome or Edge. Any sta
 | JPL news release on the [Mars solar conjunction](https://www.jpl.nasa.gov/news/mars-missions-to-pause-commanding-in-june-due-to-sun/) | Rule "no commands while Mars is within 2° of the Sun" | `src/engine/link.js` |
 | NASA [Moon Fact Sheet](https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html) | Earth to Moon distance, 384,400 km, 1.28 s | `src/engine/link.js` |
 | NASA Human Research Program, [Integrated Medical Model v3.0 report](https://www.nasa.gov/wp-content/uploads/2026/08/mars-transit-iva.pdf) for a 16-month Mars transit with four crew (2017) | Which situations are on the cards: its top drivers of evacuation (eye chemical burn, skin infection, urinary infection, shingles, kidney stone) and of loss of crew life (sepsis, smoke inhalation, stroke, appendicitis) | `data/condition_cards.json`, field `nasa_basis` |
+| NASA Office of the Chief Health and Medical Officer, [Urinary Health technical brief](https://www.nasa.gov/wp-content/uploads/2025/01/ochmo-mtb-003-urinary-health.pdf) (OCHMO-MTB-003) | Why a kidney stone is the main example: 43 stone events recorded in 29 crew members, and the second most likely reason for an emergency evacuation from the station in NASA's model | `data/condition_cards.json` |
 | NASA paper on medical risk for a long lunar mission with the IMPACT tool, [NTRS 20240011063](https://ntrs.nasa.gov/citations/20240011063) | Background for the evacuation notes of the lunar profiles | `data/mission_profiles.json` |
 
 The Integrated Medical Model report was run with the medical kit of the space station and itself advises caution when reading it for Mars; we use it only to choose which situations to show. The evacuation times in the mission profiles are still being confirmed against the full text of the lunar paper.
@@ -96,6 +105,7 @@ node tools/test_rppg.mjs
 | `src/sensors/face.js` | Eyelids, yawns, facial movement and the guided symmetry check |
 | `src/sensors/rppg.js` | Experimental pulse from the camera |
 | `data/` | Mars link table 2026-2040, Horizons reference, mission profiles, condition cards |
+| `docs/` | Figure of the Mars link, drawn from the table |
 | `tools/demo.html` | The whole flow in one page |
 | `tools/` | Tests for Node (`*.mjs`), test pages for the browser (`test_*.html`), the Python scripts that built the Mars table |
 | `vendor/mediapipe/` | MediaPipe Tasks Vision 1.2.3, unmodified |

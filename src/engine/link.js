@@ -29,6 +29,8 @@ export const LINK_PROFILES = ['iss', 'moon', 'moon_relay', 'moon_south_pole', 'm
 let DATA = null;
 /** @param {{start:string,end:string,n:number,owlt_s:number[],sep_deg:number[]}} d */
 export function setLinkData(d) { DATA = d; }
+/** First and last day of the Mars table, e.g. { start: '2026-11-01', end: '2040-12-31' }; null before the data is loaded */
+export function linkRange() { return DATA ? { start: DATA.start, end: DATA.end } : null; }
 /** Fetches data/mars_link.json (browser). Pass another URL if the app keeps its data elsewhere. */
 export async function loadLinkData(url = new URL('../../data/mars_link.json', import.meta.url)) {
   DATA = await (await fetch(url, { cache: 'no-cache' })).json();   // always revalidate: data files change during development

@@ -128,7 +128,10 @@ export function computeAuthority({ profile, dateISO, condition, custom }) {
     packet_kB: kB, medicalRate_kbps: Math.round(rate),
     link,
     profile: { id: p.id, name: p.name, evacuation: p.evacuation, gravity_g: p.gravity_g, outages: p.outages },
-    condition: { id: card.id ?? null, name, status: card.status || null },
+    condition: { id: card.id ?? null, name, status: card.status || null,
+      // example protocol content of the card, for the screen that shows the verdict (empty for an ad-hoc condition)
+      no_regret: card.no_regret || [], red_flags: card.red_flags || [], nasa_basis: card.nasa_basis || null,
+      t_crit_basis: card.t_crit_basis || null, sources: card.sources || [], review: card.review || null },
     thresholds: { earth: S.earth_threshold, crew: S.crew_threshold },
   };
 }
