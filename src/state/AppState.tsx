@@ -16,14 +16,11 @@ export const CREW: { id: CrewId; role: string }[] = [
   { id: "CM-4", role: "Crew medical officer" },
 ];
 
-export type Screen = "message" | "crew" | "body" | "evolution" | "incident" | "resources" | "plan" | "learn" | "simulator";
-const SCREENS: Screen[] = ["message", "crew", "body", "evolution", "incident", "resources", "plan", "learn", "simulator"];
+export type Screen = "body" | "message" | "incident" | "resources" | "learn";
+const SCREENS: Screen[] = ["body", "message", "incident", "resources", "learn"];
 
 interface AppState {
   data: AppData;
-  /** false = simple crew view (default); true = full medical-officer view */
-  expert: boolean;
-  setExpert: (v: boolean) => void;
   screen: Screen;
   setScreen: (s: Screen) => void;
 
@@ -87,11 +84,6 @@ export function AppStateProvider({ data, children }: { data: AppData; children: 
     const h = location.hash.replace("#", "") as Screen;
     return SCREENS.includes(h) ? h : "body";
   });
-  const [expert, setExpertRaw] = useState(false);
-  const setExpert = useCallback((v: boolean) => {
-    setExpertRaw(v);
-    if (!v) setScreenRaw((cur) => (["body", "message", "incident", "resources", "learn"].includes(cur) ? cur : "body"));
-  }, []);
   const setScreen = useCallback((s: Screen) => {
     setScreenRaw(s);
     try { history.pushState(null, "", `#${s}`); } catch { /* sandboxed */ }
@@ -163,7 +155,7 @@ export function AppStateProvider({ data, children }: { data: AppData; children: 
   const resetResources = useCallback(() => { setUnavailable(new Set()); setQuantities({}); }, []);
 
   const value: AppState = {
-    data, expert, setExpert, screen, setScreen, profile, setProfileId, analogDelayS, setAnalogDelayS,
+    data, screen, setScreen, profile, setProfileId, analogDelayS, setAnalogDelayS,
     day, setDay, minDay, maxDay, date, dateOverride, setDateOverride,
     crewId, setCrewId, selectedRegion, setSelectedRegion, incidentCardId, setIncidentCardId,
     link, linkCtx, blackout, idx, addObservations, liveObservations, statusFor,

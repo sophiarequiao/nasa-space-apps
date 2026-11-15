@@ -10,7 +10,7 @@ import { startCamera, stopCamera } from "../../sensors/camera";
 import { latestAt } from "../../engine/status";
 import { signalLabel } from "../../engine/signals";
 import type { Observation, RegionId } from "../../types";
-import { ReactionTest } from "../MessageScreen";
+import { ReactionTest } from "../../components/ReactionTest";
 
 const MAX_S = 30;
 /** Camera values shown after the message: [signal, label, unit] */

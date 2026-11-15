@@ -30,7 +30,7 @@ export function cardFromStatus(status: Record<RegionId, { status: Status }>): { 
 }
 
 export function HelpSimple() {
-  const { data, crewId, setCrewId, day, statusFor, link, incidentCardId, setIncidentCardId, itemStates, setExpert, setScreen } = useApp();
+  const { data, crewId, setCrewId, day, statusFor, link, incidentCardId, setIncidentCardId, itemStates } = useApp();
   const [step, setStep] = useState<1 | 2 | 3>(2);
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [sent, setSent] = useState(false);
@@ -196,7 +196,6 @@ export function HelpSimple() {
         </section>
       )}
 
-      <button className="linkbtn small" onClick={() => { setExpert(true); setScreen("incident"); }}>Medical officer details (protocol, data, numbers) →</button>
     </div>
   );
 }

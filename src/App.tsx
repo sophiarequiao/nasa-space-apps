@@ -7,15 +7,6 @@ import type { AppData } from "./types";
 import { loadAppData } from "./data/load";
 import { AppStateProvider, useApp } from "./state/AppState";
 import { Header } from "./components/Header";
-import { MessageScreen } from "./screens/MessageScreen";
-import { CrewScreen } from "./screens/CrewScreen";
-import { BodyScreen } from "./screens/BodyScreen";
-import { EvolutionScreen } from "./screens/EvolutionScreen";
-import { IncidentScreen } from "./screens/IncidentScreen";
-import { ResourcesScreen } from "./screens/ResourcesScreen";
-import { PlanScreen } from "./screens/PlanScreen";
-import { LearnScreen } from "./screens/LearnScreen";
-import { SimulatorScreen } from "./screens/SimulatorScreen";
 import { TodaySimple } from "./screens/simple/TodaySimple";
 import { CheckinSimple } from "./screens/simple/CheckinSimple";
 import { HelpSimple } from "./screens/simple/HelpSimple";
@@ -23,36 +14,19 @@ import { KitSimple } from "./screens/simple/KitSimple";
 import { GuideSimple } from "./screens/simple/GuideSimple";
 
 function Shell() {
-  const { screen, expert } = useApp();
-  useEffect(() => { document.documentElement.classList.toggle("glass-body", !expert); }, [expert]);
+  const { screen } = useApp();
+  useEffect(() => { document.documentElement.classList.add("glass-body"); }, []);
   return (
-    <div className={expert ? "app" : "app theme-glass"}>
+    <div className="app theme-glass">
       <Header />
       <main className="main">
-        {!expert && !["message", "incident", "resources", "learn"].includes(screen) && <TodaySimple />}
-        {!expert && screen === "message" && <CheckinSimple />}
-        {!expert && screen === "incident" && <HelpSimple />}
-        {!expert && screen === "resources" && <KitSimple />}
-        {!expert && screen === "learn" && <GuideSimple />}
-        {expert && <ExpertScreens screen={screen} />}
+        {screen === "body" && <TodaySimple />}
+        {screen === "message" && <CheckinSimple />}
+        {screen === "incident" && <HelpSimple />}
+        {screen === "resources" && <KitSimple />}
+        {screen === "learn" && <GuideSimple />}
       </main>
     </div>
-  );
-}
-
-function ExpertScreens({ screen }: { screen: string }) {
-  return (
-    <>
-        {screen === "message" && <MessageScreen />}
-        {screen === "crew" && <CrewScreen />}
-        {screen === "body" && <BodyScreen />}
-        {screen === "evolution" && <EvolutionScreen />}
-        {screen === "incident" && <IncidentScreen />}
-        {screen === "resources" && <ResourcesScreen />}
-        {screen === "plan" && <PlanScreen />}
-        {screen === "learn" && <LearnScreen />}
-        {screen === "simulator" && <SimulatorScreen />}
-    </>
   );
 }
 
