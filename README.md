@@ -5,6 +5,8 @@
 
 NASA Space Apps Challenge 2026 · Challenge: *Create Health Monitoring Software for Astronauts on Space Missions* · Local event: Seville.
 
+**Live app:** https://sophiarequiao.github.io/nasa-space-apps/ (works in Chrome on a laptop; allow camera and microphone in Check-in)
+
 > **Decision-support prototype. Not a medical device. It does not diagnose.**
 > Crew data are synthetic, the inventory is fictional and the protocols are samples pending clinical validation.
 
