@@ -1,0 +1,137 @@
+{
+ "about": "Radiation each mission adds, from NASA measurements, NASA estimates and NASA's own career limit. Doses are in millisieverts (mSv). 'kind' says what a number is: 'measured' (an instrument in that place), 'typical' (NASA's range for crews) or 'projected' (a NASA estimate for a mission that has not flown). The numbers are averages for the periods given; they change with shielding and with the solar cycle, and they do not include a large solar storm unless the text says so. Context for the crew: not a dosimeter and not an estimate of anybody's risk. Drafted with AI assistance (Claude, Anthropic). Same data as the technical modules (branch modules-en, data/radiation.json), with the profile ids of this app.",
+ "version": "0.1",
+ "career_limit": {
+  "mSv": 600,
+  "what": "NASA career limit for space flight radiation (effective dose), the same for all ages and sexes",
+  "short": "NASA-STD-3001",
+  "title": "NASA-STD-3001 Volume 1, career limit for space flight radiation, as given in the NASA technical brief OCHMO-TB-020",
+  "url": "https://www.nasa.gov/wp-content/uploads/2023/03/radiation-protection-technical-brief-ochmo.pdf"
+ },
+ "environments": {
+  "station": {
+   "kind": "typical",
+   "rate_mSv_day": [
+    0.2,
+    0.5
+   ],
+   "where": "inside the International Space Station (NASA's range for crews)",
+   "measure": "effective dose; about 40 to 90 mSv in a six-month mission",
+   "sources": [
+    {
+     "short": "NASA, Moon to Mars radiation protection",
+     "title": "Simonsen, Zawaski and Weeks, NASA, 'Moon 2 Mars: Space Radiation Protection' (NTRS 20250006168)",
+     "url": "https://ntrs.nasa.gov/api/citations/20250006168/downloads/ASCEND%20Simonsen%20draft%201.pdf"
+    }
+   ]
+  },
+  "lunar_mission": {
+   "kind": "projected",
+   "rate_mSv_day": null,
+   "mission_mSv": [
+    20,
+    30
+   ],
+   "mission_days": [
+    10,
+    30
+   ],
+   "storm_design_mSv": 150,
+   "measure": "effective dose from galactic cosmic rays, NASA estimate (table 2 and section IV.C.1 of the source)",
+   "note": "Radiation: NASA estimates under 20 to about 30 millisieverts from cosmic rays for a lunar mission of 10 to 30 days (Artemis II and III), against a career limit of 600 mSv. The spacecraft is designed to keep the crew under 150 mSv in a large solar storm.",
+   "sources": [
+    {
+     "short": "NASA, Moon to Mars radiation protection",
+     "title": "Simonsen, Zawaski and Weeks, NASA, 'Moon 2 Mars: Space Radiation Protection' (NTRS 20250006168)",
+     "url": "https://ntrs.nasa.gov/api/citations/20250006168/downloads/ASCEND%20Simonsen%20draft%201.pdf"
+    }
+   ]
+  },
+  "moon_surface": {
+   "kind": "projected",
+   "rate_mSv_day": null,
+   "stay": [
+    {
+     "bound": "under",
+     "mSv": 100,
+     "years": 0.5,
+     "sun": "solar maximum"
+    },
+    {
+     "bound": "about",
+     "mSv": 350,
+     "years": 1,
+     "sun": "solar minimum"
+    }
+   ],
+   "measure": "effective dose from galactic cosmic rays, NASA estimate (table 2 of the source)",
+   "note": "Radiation: NASA estimates under 100 millisieverts in six months on the Moon at solar maximum, and about 350 in a year at solar minimum, from cosmic rays. NASA's career limit is 600 mSv: at those rates, about 1.7 years at solar minimum and more than 3 years at solar maximum.",
+   "sources": [
+    {
+     "short": "NASA, Moon to Mars radiation protection",
+     "title": "Simonsen, Zawaski and Weeks, NASA, 'Moon 2 Mars: Space Radiation Protection' (NTRS 20250006168)",
+     "url": "https://ntrs.nasa.gov/api/citations/20250006168/downloads/ASCEND%20Simonsen%20draft%201.pdf"
+    }
+   ]
+  },
+  "deep_space": {
+   "kind": "measured",
+   "rate_mSv_day": [
+    1.8,
+    1.8
+   ],
+   "where": "inside the spacecraft that carried NASA's Curiosity rover to Mars (2011-2012)",
+   "measure": "dose equivalent from galactic cosmic rays, average of the cruise",
+   "instrument": "RAD, the Radiation Assessment Detector of NASA's Mars Science Laboratory",
+   "mission_note": "NASA projects 1,000 to 1,200 mSv for a whole Mars mission.",
+   "sources": [
+    {
+     "short": "Zeitlin et al., Science 2013 (NASA MSL, RAD)",
+     "title": "Zeitlin et al., 'Measurements of Energetic Particle Radiation in Transit to Mars on the Mars Science Laboratory', Science 340, 1080 (2013)",
+     "url": "https://swri.org/node/9140"
+    },
+    {
+     "short": "NASA, Moon to Mars radiation protection",
+     "title": "Simonsen, Zawaski and Weeks, NASA, 'Moon 2 Mars: Space Radiation Protection' (NTRS 20250006168)",
+     "url": "https://ntrs.nasa.gov/api/citations/20250006168/downloads/ASCEND%20Simonsen%20draft%201.pdf"
+    }
+   ]
+  },
+  "mars_surface": {
+   "kind": "measured",
+   "rate_mSv_day": [
+    0.67,
+    0.67
+   ],
+   "where": "by NASA's Curiosity rover on the surface of Mars (2012-2013)",
+   "measure": "dose equivalent from galactic cosmic rays, Gale crater, August 2012 to June 2013",
+   "instrument": "RAD, the Radiation Assessment Detector of NASA's Mars Science Laboratory",
+   "mission_note": "NASA projects 1,000 to 1,200 mSv for a whole Mars mission.",
+   "sources": [
+    {
+     "short": "Hassler et al., Science 2014 (NASA MSL, RAD)",
+     "title": "Hassler et al., 'Mars' Surface Radiation Environment Measured with the Mars Science Laboratory's Curiosity Rover', Science 343, 1244797 (2014)",
+     "url": "https://swri.org/node/9079"
+    },
+    {
+     "short": "NASA, Moon to Mars radiation protection",
+     "title": "Simonsen, Zawaski and Weeks, NASA, 'Moon 2 Mars: Space Radiation Protection' (NTRS 20250006168)",
+     "url": "https://ntrs.nasa.gov/api/citations/20250006168/downloads/ASCEND%20Simonsen%20draft%201.pdf"
+    }
+   ]
+  }
+ },
+ "mars_mission_projection": {
+  "low_mSv": 1000,
+  "high_mSv": 1200
+ },
+ "by_profile": {
+  "leo": "station",
+  "lunar_orbit": "lunar_mission",
+  "lunar_relay": "moon_surface",
+  "lunar_no_relay": "moon_surface",
+  "mars_transit": "deep_space",
+  "mars_surface": "mars_surface",
+  "analog": null
+ }
+}

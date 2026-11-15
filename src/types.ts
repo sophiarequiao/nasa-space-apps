@@ -169,6 +169,30 @@ export interface LinkAssumptions {
   lunar_sidereal_month_d: number;
 }
 
+// Radiation each mission adds: NASA measurements and estimates against NASA's career limit (public/data/radiation.json).
+export interface RadiationSource { short: string; title: string; url: string; }
+export interface RadiationEnvironment {
+  kind: "measured" | "typical" | "projected";
+  rate_mSv_day: [number, number] | null;
+  where?: string;
+  note?: string;
+  mission_note?: string;
+  sources: RadiationSource[];
+}
+export interface RadiationFile {
+  career_limit: { mSv: number; short: string; title: string; url: string };
+  environments: Record<string, RadiationEnvironment>;
+  by_profile: Record<string, string | null>;
+}
+export interface RadiationInfo {
+  kind: RadiationEnvironment["kind"];
+  rateMSvDay: [number, number] | null;
+  daysToLimit: [number, number] | null;
+  limitMSv: number;
+  text: string;
+  sources: RadiationSource[];
+}
+
 export interface AppData {
   observations: ObservationsFile;
   baselines: BaselinesFile;
@@ -182,4 +206,5 @@ export interface AppData {
   scenarios: Scenario[];
   profiles: MissionProfile[];
   assumptions: LinkAssumptions;
+  radiation: RadiationFile;
 }

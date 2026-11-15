@@ -38,7 +38,7 @@ Mars transit, Mars surface and Earth analogs.
 5. **Incident**: symptom → signals compatible with a condition card (never a diagnosis) → no-regret actions → resources → authority dial → countdown → SBAR summary under 2 kB.
 6. **Resources**: inventory, "What do we lose if…?", devices and data sources.
 7. **Plan**: adaptive monitoring, blackout planner and process-based gamification.
-8. **Simulator**: mission profile + scenario (24) + date + device failures.
+8. **Simulator**: mission profile + scenario (24) + date + device failures, with the radiation that mission adds (NASA measurements and estimates against the 600 mSv career limit).
 9. **Learn**: each risk and measurement explained, with sources.
 
 ## How it decides (explainable, no black box)
@@ -85,14 +85,14 @@ public/
   data/      English JSON built by scripts/build_data.py
   geometries/human_body.glb
 data_raw/    the team's original files (synthetic observations, link table, baselines, cards, scenarios, spreadsheet)
-scripts/     build_data.py · verify_authority.mjs
+scripts/     build_data.py · verify_authority.mjs · verify_radiation.mjs
 ```
 
 ## Data and sources
 
 - **Synthetic crew** (CC0): 4 crew members, 30 days before launch and 60 days in flight, all onboard sources, three demo events (CM-2 days 30–36 short sleep with an optimistic self-report; CM-3 day 44 fever and high white cells; CM-4 day 52 renal colic).
 - **Earth–Mars link** 2026–2040 from JPL's approximate planetary positions (Standish), with solar conjunction blackouts (e.g. 17 days from 13 March 2028).
-- **Evidence used**: NASA Human Research Program, Integrated Medical Model, IMPACT, NASA-STD-3001, OCHMO technical briefs, Norsk 2015 (blood pressure), Barger 2014 (sleep), Zeitlin 2013 (radiation), Du et al. 2011 and Wotring 2016 (drug stability), Marshall-Goebel 2019 (jugular flow), NICE NG118, Surviving Sepsis Campaign 2021, AAO EyeWiki.
+- **Evidence used**: NASA Human Research Program, Integrated Medical Model, IMPACT, NASA-STD-3001, OCHMO technical briefs, Norsk 2015 (blood pressure), Barger 2014 (sleep), Zeitlin 2013 and Hassler 2014 (radiation measured by the RAD instrument of NASA's Mars Science Laboratory on the way to Mars and on its surface), Simonsen, Zawaski and Weeks (NASA, radiation estimates for the station, the Moon and a Mars mission, NTRS 20250006168), OCHMO-TB-020 (600 mSv career limit), Du et al. 2011 and Wotring 2016 (drug stability), Marshall-Goebel 2019 (jugular flow), NICE NG118, Surviving Sepsis Campaign 2021, AAO EyeWiki.
 - Uses NASA data; not endorsed by NASA. No NASA logos.
 
 ## Limits we state openly
