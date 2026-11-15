@@ -1,7 +1,8 @@
 // Simulator: mission profile + scenario + date (+ optional device failures) and see how the
 // app responds. For crew training on Earth, testing with the medical team, and the live demo.
 import { useState } from "react";
-import { useApp } from "../state/AppState";
+import { useApp, CREW } from "../state/AppState";
+import { SCENARIO_EFFECTS, hasEffects } from "../engine/scenarioEffects";
 import { Card, DeciderPill, Segmented, StatusPill, Tag } from "../components/ui";
 import { computeAuthority } from "../engine/authority";
 import { conditionCapabilities } from "../engine/resources";
@@ -18,7 +19,9 @@ const PRESET_DATES = [
 
 export function SimulatorScreen() {
   const app = useApp();
-  const { data, profile, setProfileId, date, setDateOverride, link, itemStates, toggleUnavailable, overrides, setIncidentCardId, setCrewId, setDay, setScreen } = app;
+  const { data, profile, setProfileId, date, setDateOverride, link, itemStates, toggleUnavailable, overrides, setIncidentCardId, setCrewId, setDay, setScreen,
+    crewId, day, activeScenarios, applyScenarioFor, removeScenario, statusFor, setSelectedRegion } = app;
+  const [applied, setApplied] = useState<string | null>(null);
   const [scenarioId, setScenarioId] = useState("renal_colic");
   const [filter, setFilter] = useState<"all" | "live">("all");
   const sc = data.scenarios.find((s) => s.id === scenarioId)!;
@@ -62,6 +65,7 @@ export function SimulatorScreen() {
               <b>{s.name}</b>
               <span className="tiny muted">{s.category} · {s.profiles}</span>
               {s.card ? <Tag tone="info">interactive</Tag> : <Tag>design</Tag>}
+              {hasEffects(s.id) && <Tag tone="warn">changes data</Tag>}
             </button>
           ))}
         </div>
@@ -72,6 +76,45 @@ export function SimulatorScreen() {
           <p><b>Trigger:</b> {sc.trigger}</p>
           <p><b>What the app does:</b> {sc.app_action}</p>
           <p className="tiny muted">Basis: {sc.basis}</p>
+        </Card>
+        <Card title="Apply to the body" subtitle="Changes this crew member's signals on this mission day; the body colours update.">
+          {hasEffects(sc.id) ? (
+            <>
+              <div className="row wrap gap">
+                <label className="field"><span>Crew member</span>
+                  <select value={crewId} onChange={(e) => setCrewId(e.target.value as CrewId)}>{CREW.map((c) => <option key={c.id} value={c.id}>{c.id} · {c.role}</option>)}</select>
+                </label>
+                <label className="field"><span>Mission day</span>
+                  <input type="number" value={day} min={0} max={59} onChange={(e) => setDay(Number(e.target.value))} style={{ width: 80 }} />
+                </label>
+                <button className="btn primary" onClick={() => {
+                  const n = applyScenarioFor(sc.id, crewId, day);
+                  setApplied(n ? `${n} values applied${SCENARIO_EFFECTS.effects[sc.id].scope === "crew" ? " to the whole crew" : ` to ${crewId}`} on day ${day}.` : "No values could be computed.");
+                }}>Apply scenario</button>
+              </div>
+              {applied && <p className="small">{applied}</p>}
+              <div className="mini-regions">
+                {Object.values(statusFor(crewId, day)).filter((r) => r.status !== "green").map((r) => (
+                  <StatusPill key={r.region} status={r.status}>{data.regions.find((x) => x.id === r.region)?.name}</StatusPill>
+                ))}
+              </div>
+              <button className="btn ghost sm" onClick={() => { setSelectedRegion(null); setScreen("body"); }}>See the body</button>
+            </>
+          ) : <p className="muted small">No effects defined for this scenario yet (pending, data lead).</p>}
+          {activeScenarios.length > 0 && (
+            <>
+              <h4>Applied scenarios</h4>
+              <ul className="applied">
+                {activeScenarios.map((a) => (
+                  <li key={a.key}>
+                    <span>{data.scenarios.find((s) => s.id === a.scenarioId)?.name ?? a.scenarioId} · {SCENARIO_EFFECTS.effects[a.scenarioId]?.scope === "crew" ? "whole crew" : a.crew} · day {a.day} · {a.count} values</span>
+                    <button className="btn ghost sm" onClick={() => removeScenario(a.key)}>Remove</button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          <p className="tiny muted">Effect values are illustrative and pending validation by the health lead. Scenario values replace the data of that day.</p>
         </Card>
         <Card title="Link on this date" subtitle={`${profile.name} · ${date}`}>
           {link.hasLink

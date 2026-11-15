@@ -50,21 +50,21 @@ export function KitSimple() {
       </section>
 
       <div className="kit-cols">
-        <section className="panel">
-          <h3 className="t-red"><span className="mk mk-red" /> Missing or broken</h3>
+        <details className="glass g-fold">
+          <summary><span className="g-title t-red"><span className="mk mk-red" /> Missing or broken</span><span className="g-count">{missing.length}</span></summary>
           {missing.length === 0 && <p className="muted">Nothing.</p>}
           <ul className="kit-list">{missing.map((s) => <li key={s.item.id}><b>{s.item.name}</b> <span className="tiny muted">{s.label.toLowerCase()}</span>
             {s.state === "UNAVAILABLE" && <button className="linkbtn tiny" onClick={() => toggleUnavailable(s.item.id)}> undo</button>}</li>)}</ul>
-        </section>
-        <section className="panel">
-          <h3 className="t-amber"><span className="mk mk-amber" /> Use with care</h3>
+        </details>
+        <details className="glass g-fold">
+          <summary><span className="g-title t-amber"><span className="mk mk-amber" /> Use with care</span><span className="g-count">{caution.length}</span></summary>
           <p className="tiny muted">In space, some medicines lost strength before their date. Check with the medical officer before using these.</p>
           <ul className="kit-list">{caution.map((s) => <li key={s.item.id}><b>{s.item.name}</b> <span className="tiny muted">{s.item.category.toLowerCase()} · {s.quantity} left</span></li>)}</ul>
-        </section>
-        <section className="panel">
-          <h3 className="t-green"><span className="mk mk-green" /> Ready</h3>
+        </details>
+        <details className="glass g-fold">
+          <summary><span className="g-title t-green"><span className="mk mk-green" /> Ready</span><span className="g-count">{ready.length}</span></summary>
           <ul className="kit-list cols">{ready.map((s) => <li key={s.item.id}>{s.item.name} <span className="tiny muted">· {s.quantity}</span></li>)}</ul>
-        </section>
+        </details>
       </div>
     </div>
   );

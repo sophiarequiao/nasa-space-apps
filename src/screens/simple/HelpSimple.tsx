@@ -54,7 +54,6 @@ export function HelpSimple() {
         <div>
           <p className="muted small">{crewId} · {card.symptom}</p>
           <h2 className="help-title">{card.name}</h2>
-          <p className="tiny muted">The app does not diagnose. It helps you act; a person decides.</p>
         </div>
         <button className="btn" onClick={() => setStep(1)}>Change</button>
       </div>
