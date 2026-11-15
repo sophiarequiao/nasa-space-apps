@@ -18,5 +18,5 @@ export const SIMPLE_NAV: { id: Screen; label: string; hint: string }[] = [
   { id: "message", label: "Check-in", hint: "Daily message to Earth" },
   { id: "incident", label: "Help", hint: "Something is wrong" },
   { id: "resources", label: "Kit", hint: "What we have on board" },
-  { id: "learn", label: "Learn", hint: "Why each test matters" },
+  { id: "learn", label: "Guide", hint: "How to measure, when to call" },
 ];

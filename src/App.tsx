@@ -20,6 +20,7 @@ import { TodaySimple } from "./screens/simple/TodaySimple";
 import { CheckinSimple } from "./screens/simple/CheckinSimple";
 import { HelpSimple } from "./screens/simple/HelpSimple";
 import { KitSimple } from "./screens/simple/KitSimple";
+import { GuideSimple } from "./screens/simple/GuideSimple";
 
 function Shell() {
   const { screen, expert } = useApp();
@@ -32,7 +33,7 @@ function Shell() {
         {!expert && screen === "message" && <CheckinSimple />}
         {!expert && screen === "incident" && <HelpSimple />}
         {!expert && screen === "resources" && <KitSimple />}
-        {!expert && screen === "learn" && <LearnScreen />}
+        {!expert && screen === "learn" && <GuideSimple />}
         {expert && <ExpertScreens screen={screen} />}
       </main>
     </div>

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useApp } from "../../state/AppState";
 import { HealthBody3D } from "../../components/body/HealthBody3D";
 import { VitalCard } from "../../components/VitalCard";
+import { LiveHeartCard } from "../../components/LiveHeartCard";
 import type { RegionId, Status } from "../../types";
 import { REGION_SHORT, STATUS_WORDS, priority, regionActions, regionSentence } from "../../engine/plain";
 import { latestAt } from "../../engine/status";
@@ -115,7 +116,7 @@ export function TodaySimple() {
       </section>
 
       <aside className="mon-col">
-        <VitalCard signal="heart_rate" title="Heart rate" />
+        <LiveHeartCard />
         <VitalCard signal="bp_systolic" second="bp_diastolic" title="Blood pressure" />
         <VitalCard signal="temperature" title="Temperature" />
         <VitalCard signal="sleep" title="Sleep" />

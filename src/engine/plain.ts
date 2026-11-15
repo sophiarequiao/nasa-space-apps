@@ -3,7 +3,7 @@
 import type { RegionId, Status } from "../types";
 import type { Decider } from "./authority";
 import type { RegionStatus, SignalStatus } from "./status";
-import { SIGNALS, withUnit } from "./signals";
+import { SIGNALS } from "./signals";
 
 export const STATUS_WORDS: Record<Status, string> = {
   green: "All good",
@@ -70,20 +70,45 @@ export function regionActions(region: RegionId, status: Status): string[] {
   return ACTIONS[region][status] ?? [];
 }
 
-/** One plain sentence about a signal, compared with the person's own normal. */
+/**
+ * Plain words for each signal, without numbers: crew members who are not doctors read
+ * "Fever" faster than "38.8 °C". `up` = value above the person's usual, `red` = act-now level.
+ */
+const PLAIN: Record<string, (up: boolean, red: boolean) => string> = {
+  heart_rate: (up) => `Heart beating ${up ? "faster" : "slower"} than usual for you`,
+  bp_systolic: (up) => `Blood pressure ${up ? "higher" : "lower"} than usual for you`,
+  bp_diastolic: (up) => `Blood pressure ${up ? "higher" : "lower"} than usual for you`,
+  respiratory_rate: (up) => `Breathing ${up ? "faster" : "slower"} than usual for you`,
+  spo2: (_, red) => (red ? "Very low oxygen in the blood" : "Oxygen in the blood a bit low"),
+  cabin_co2: () => "Too much CO2 in the cabin air",
+  sleep: () => "You slept less than usual",
+  mood: () => "Lower mood than usual",
+  reaction_lapses: () => "Slower reactions than usual",
+  speech_rate: () => "Your voice sounds slower than usual",
+  pause_fraction: () => "More pauses than usual when you speak",
+  message_duration: () => "Shorter messages to Earth than usual",
+  temperature: (up, red) => (up ? (red ? "Fever" : "Temperature a bit high") : "Temperature lower than usual"),
+  glucose: (up) => `Blood sugar ${up ? "higher" : "lower"} than usual for you`,
+  wbc: () => "Blood test shows signs of infection",
+  inflammation_marker: () => "Blood test shows signs of inflammation",
+  cumulative_dose: (_, red) => (red ? "Radiation dose close to the limit" : "Radiation dose getting high"),
+  body_mass: () => "Losing body weight",
+  urine_blood: (_, red) => (red ? "Blood found in the urine test" : "A little blood in the urine test"),
+  pain: (_, red) => (red ? "Strong pain" : "Some pain"),
+  optic_disc_edema: (_, red) => (red ? "Clear change on the eye scan" : "Small change on the eye scan"),
+  jugular_flow: (_, red) => (red ? "Blocked flow in a neck vein" : "Slow blood flow in a neck vein"),
+};
+
+/** One plain sentence about a signal, compared with the person's own normal. No numbers. */
 export function plainSignal(s: SignalStatus): string | null {
   const meta = SIGNALS[s.signal];
   if (!meta) return null;
   const name = meta.label.replace(/ \(.*\)$/, "");
   if (s.status === "silent") return s.ageDays ? `${name}: last checked ${s.ageDays} days ago` : `${name}: never checked`;
-  if (s.value === null) return null;
-  const v = withUnit(s.signal, s.value, s.unit);
-  if (meta.absoluteOnly) {
-    if (s.status === "green") return null;
-    return `${name}: ${v}`;
-  }
-  if (s.z === null || s.status === "green") return null;
-  return `${name}: ${v}, ${s.z > 0 ? "higher" : "lower"} than usual for you`;
+  if (s.value === null || s.status === "green") return null;
+  const up = s.z !== null ? s.z > 0 : true;
+  const phrase = PLAIN[s.signal];
+  return phrase ? phrase(up, s.status === "red") : `${name} ${up ? "higher" : "lower"} than usual for you`;
 }
 
 /** The main sentence for a region. */
@@ -95,7 +120,7 @@ export function regionSentence(rs: RegionStatus): string {
   }
   const lines = rs.signals.filter((s) => s.status === rs.status).map(plainSignal).filter(Boolean) as string[];
   if (rs.status === "green") return "Normal for you.";
-  return lines.slice(0, 2).join(" · ") || STATUS_WORDS[rs.status];
+  return [...new Set(lines)].slice(0, 2).join(" · ") || STATUS_WORDS[rs.status];
 }
 
 export const DECIDER_PLAIN: Record<Decider, { title: string; text: string }> = {

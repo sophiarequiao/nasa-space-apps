@@ -52,7 +52,6 @@ export function VitalCard({ signal, second, title }: { signal: string; second?: 
           {last && last.day === day && <circle cx={x(last.day)} cy={y(last.value)} r={6} fill="none" stroke={STATUS_COLOR[status]} strokeWidth={2} />}
         </svg>
       ) : <p className="g-small">Not enough data yet.</p>}
-      <div className="v-foot">{last ? (last.day === day ? "Today" : `${day - last.day} days ago`) : "Never measured"} · shaded = normal for you</div>
     </details>
   );
 }

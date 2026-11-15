@@ -2,29 +2,24 @@
 // get one or two plain sentences back. Audio and video never leave the device.
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "../../state/AppState";
-import { analyzeVoice, compareVoice, loadVoiceHistory, meanFromHistory, saveVoiceHistory, type PersonalVoiceMean, type VoiceResult } from "../../sensors/voice";
-import type { RppgEstimate } from "../../sensors/rppg";
+import { analyzeVoice, loadVoiceHistory, meanFromHistory, saveVoiceHistory, type PersonalVoiceMean, type VoiceResult } from "../../sensors/voice";
 import { formatDuration } from "../../engine/link";
-import { latestAt } from "../../engine/status";
 import type { Observation, RegionId } from "../../types";
-import { CameraPulse, ReactionTest } from "../MessageScreen";
+import { ReactionTest } from "../MessageScreen";
 
 const MAX_S = 30;
 
 export function CheckinSimple() {
-  const { data, crewId, day, link, idx, addObservations, setScreen } = useApp();
+  const { data, crewId, day, link, addObservations, setScreen } = useApp();
   const [phase, setPhase] = useState<"idle" | "rec" | "done">("idle");
   const [secs, setSecs] = useState(0);
   const [level, setLevel] = useState(0);
   const [result, setResult] = useState<VoiceResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [camera, setCamera] = useState(false);
-  const [pulse, setPulse] = useState<RppgEstimate | null>(null);
   const [showTest, setShowTest] = useState(false);
   const [reaction, setReaction] = useState<{ lapses: number; meanMs: number; n: number } | null>(null);
   const [extra, setExtra] = useState({ sleep: "", mood: 0, pain: 0 });
   const [sent, setSent] = useState(false);
-  const [synthetic, setSynthetic] = useState(false);
   const rec = useRef<MediaRecorder | null>(null);
   const stream = useRef<MediaStream | null>(null);
   const raf = useRef(0);
@@ -36,7 +31,7 @@ export function CheckinSimple() {
   useEffect(() => () => { cancelAnimationFrame(raf.current); window.clearInterval(timer.current); stream.current?.getTracks().forEach((t) => t.stop()); }, []);
 
   async function start() {
-    setError(null); setResult(null); setSent(false); setSynthetic(false);
+    setError(null); setResult(null); setSent(false);
     try {
       const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false } });
       stream.current = s;
@@ -63,24 +58,17 @@ export function CheckinSimple() {
       const t0 = Date.now();
       timer.current = window.setInterval(() => { const x = (Date.now() - t0) / 1000; setSecs(x); if (x >= MAX_S) stop(); }, 200);
     } catch {
-      setError("The microphone is not available here. Use the example message below.");
+      setError("The microphone is not available here. The app needs HTTPS and permission to use it.");
     }
   }
   function stop() { window.clearInterval(timer.current); if (rec.current?.state === "recording") rec.current.stop(); }
-
-  function example() {
-    const sr = latestAt(idx.get(crewId)?.get("speech_rate"), day), pf = latestAt(idx.get(crewId)?.get("pause_fraction"), day);
-    if (!sr || !pf) return;
-    setResult(compareVoice({ durationS: 45, speakingTimeS: 35, speechRate: sr.value, pauseFraction: pf.value, f0MedianHz: null, f0VariabilitySt: null, snrDb: 30, quality: 0.9 }, mean));
-    setPhase("done"); setSynthetic(true); setSent(false);
-  }
 
   const slow = result?.comparisons.find((c) => c.signal === "speech_rate" && c.status === "amber");
   const pauses = result?.comparisons.find((c) => c.signal === "pause_fraction" && c.status === "amber");
   const voiceOk = result && result.features.speechRate > 0 && !slow && !pauses;
 
   function send() {
-    if (!synthetic) {
+    {
       const t = new Date().toISOString();
       const o = (signal: string, value: number, unit: string, source: string, method: Observation["method"], region: RegionId): Observation =>
         ({ crew: crewId, phase: day < 0 ? "preflight" : "inflight", day, signal, value, unit, time: t, source, method, quality: 1, region, live: true });
@@ -89,7 +77,6 @@ export function CheckinSimple() {
         out.push(o("speech_rate", +result.features.speechRate.toFixed(2), "syllables/s", "microphone", "estimated", "brain"));
         out.push(o("pause_fraction", +result.features.pauseFraction.toFixed(2), "fraction", "microphone", "estimated", "brain"));
       }
-      if (pulse?.bpm && pulse.quality > 0.3) out.push(o("heart_rate", pulse.bpm, "bpm", "camera_rppg", "estimated", "heart"));
       if (reaction) out.push(o("reaction_lapses", reaction.lapses, "lapses", "reaction_test", "clinical", "brain"));
       if (extra.sleep) out.push(o("sleep", Number(extra.sleep), "h", "manual", "self_report", "brain"));
       if (extra.mood) out.push(o("mood", extra.mood, "1-5", "questionnaire", "self_report", "brain"));
@@ -102,7 +89,6 @@ export function CheckinSimple() {
   return (
     <div className="simple narrow">
       <h2>Daily message to Earth</h2>
-      <p className="muted">Talk to home as you always do. While you speak, the app listens to how your voice sounds. Nothing is recorded or kept.</p>
 
       <div className="big-rec">
         <button className={`rec-btn xl ${phase === "rec" ? "on" : ""}`} onClick={phase === "rec" ? stop : start} aria-label={phase === "rec" ? "Stop" : "Record"}>
@@ -114,12 +100,7 @@ export function CheckinSimple() {
           {phase === "rec" && <button className="btn" onClick={stop}>Finish</button>}
         </div>
       </div>
-      <div className="row wrap gap">
-        <button className="linkbtn small" onClick={example}>No microphone? Use {crewId}'s example message</button>
-        <label className="check small"><input type="checkbox" checked={camera} onChange={(e) => setCamera(e.target.checked)} /> Also take my pulse with the camera (experimental)</label>
-      </div>
       {error && <p className="banner warn small">{error}</p>}
-      {camera && <CameraPulse onEstimate={setPulse} />}
 
       {result && (
         <section className={`panel answer ${voiceOk ? "ok" : "watch"}`}>
@@ -134,8 +115,6 @@ export function CheckinSimple() {
               {!showTest && <button className="btn primary" onClick={() => setShowTest(true)}>Do the quick reaction test</button>}
             </>
           )}
-          {pulse?.bpm && pulse.quality > 0.3 && <p className="small">Pulse from the camera: about <b>{pulse.bpm}</b> beats per minute.</p>}
-          {synthetic && <p className="tiny muted">Example from the synthetic data set.</p>}
         </section>
       )}
       {showTest && (
