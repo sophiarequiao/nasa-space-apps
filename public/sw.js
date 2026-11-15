@@ -35,6 +35,8 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET" || new URL(req.url).origin !== self.location.origin) return;
+  // The sensor lab (public/lab/) is a separate static page: the browser serves it, and it never replaces the cached app shell.
+  if (new URL(req.url).pathname.includes("/lab/")) return;
   if (req.mode === "navigate") {
     event.respondWith(
       fetch(req)

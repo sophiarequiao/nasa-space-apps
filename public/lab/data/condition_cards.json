@@ -1,0 +1,548 @@
+{
+ "_about": "SOSpesAI condition cards v0.2. Example protocol steps, not medical advice and no doses. Three cards (renal colic, suspected sepsis, chemical eye burn) had a desk review by the health lead against public guidelines; every time to act stays a team planning value until a clinician validates it (status TO_VALIDATE). Packet sizes are engineering estimates. Drafted with AI assistance (Claude, Anthropic).",
+ "_sources": {
+  "imm_mars": "https://www.nasa.gov/wp-content/uploads/2026/08/mars-transit-iva.pdf",
+  "jugular": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6902784",
+  "zoster_reactivation": "https://www.frontiersin.org/articles/10.3389/fmicb.2019.00016/text",
+  "sleep": "https://www.omicsdi.org/dataset/biostudies-literature/S-EPMC4188436",
+  "submarines": "https://apps.dtic.mil/sti/trecms/pdf/AD1082304.pdf"
+ },
+ "cards": [
+  {
+   "id": "eye_chemical_burn",
+   "name": "Chemical eye burn",
+   "name_es": "Quemadura química ocular",
+   "nasa_basis": "NASA Integrated Medical Model, Mars transit report: the first driver of evacuation.",
+   "silent": false,
+   "t_crit_min": 5,
+   "t_crit_basis": "Irrigation starts immediately and is not delayed to identify the substance (American Academy of Ophthalmology, EyeWiki). Some chemicals cause irreversible damage in as little as five minutes; 5 min stands for \"now\".",
+   "earth_best_mode": "async_images",
+   "packet": [
+    {
+     "item": "SBAR text",
+     "size_kB_estimate": 2
+    },
+    {
+     "item": "2 eye photos",
+     "size_kB_estimate": 600
+    }
+   ],
+   "onboard_tools": [
+    "Eye wash",
+    "Camera"
+   ],
+   "no_regret": [
+    "Start eye irrigation now and keep going; do not wait for Earth",
+    "Note the substance and the time",
+    "Exception: if the eye may be pierced, follow the protocol for that instead"
+   ],
+   "red_flags": [
+    "Vision loss",
+    "Cloudy cornea",
+    "Severe pain after irrigation"
+   ],
+   "status": "TO_VALIDATE",
+   "sources": [
+    {
+     "title": "American Academy of Ophthalmology, EyeWiki: Chemical (Alkali and Acid) Injury of the Conjunctiva and Cornea",
+     "url": "https://eyewiki.org/Chemical_(Alkali_and_Acid)_Injury_of_the_Conjunctiva_and_Cornea"
+    },
+    {
+     "title": "Review of Optometry: Quickly douse chemical burns",
+     "url": "https://www.reviewofoptometry.com/article/quickly-douse-chemical-burns"
+    },
+    {
+     "title": "NASA Human Research Program, Integrated Medical Model v3.0: report for a 16-month Mars transit mission (2017)",
+     "url": "https://www.nasa.gov/wp-content/uploads/2026/08/mars-transit-iva.pdf"
+    }
+   ],
+   "review": "Desk review by the health lead against public guidelines on 14 Nov 2026. The flight protocol and the time to act still need validation."
+  },
+  {
+   "id": "smoke_inhalation",
+   "name": "Smoke inhalation",
+   "name_es": "Inhalación de humo",
+   "nasa_basis": "NASA Integrated Medical Model, Mars transit report: among the top drivers of loss of crew life.",
+   "silent": false,
+   "t_crit_min": 5,
+   "t_crit_basis": "Airway and oxygen come first in any inhalation injury",
+   "earth_best_mode": "text",
+   "packet": [
+    {
+     "item": "SBAR text",
+     "size_kB_estimate": 2
+    },
+    {
+     "item": "SpO2 and HR trend 1 h",
+     "size_kB_estimate": 10
+    }
+   ],
+   "onboard_tools": [
+    "Oxygen",
+    "Pulse oximeter",
+    "Cabin sensors"
+   ],
+   "no_regret": [
+    "Move to clean air and give oxygen",
+    "Start continuous SpO2 monitoring"
+   ],
+   "red_flags": [
+    "Hoarse voice or noisy breathing",
+    "SpO2 falling"
+   ],
+   "status": "TO_VALIDATE",
+   "sources": [
+    {
+     "title": "NASA Human Research Program, Integrated Medical Model v3.0: report for a 16-month Mars transit mission (2017)",
+     "url": "https://www.nasa.gov/wp-content/uploads/2026/08/mars-transit-iva.pdf"
+    }
+   ]
+  },
+  {
+   "id": "suspected_sepsis",
+   "name": "Suspected sepsis",
+   "name_es": "Sospecha de sepsis",
+   "nasa_basis": "NASA Integrated Medical Model, Mars transit report: the leading driver of loss of crew life.",
+   "silent": false,
+   "t_crit_min": 60,
+   "t_crit_basis": "Surviving Sepsis Campaign 2021: with possible septic shock or a high likelihood of sepsis, antimicrobials immediately, ideally within 1 hour of recognition. It is a limit, not a waiting time.",
+   "earth_best_mode": "text",
+   "packet": [
+    {
+     "item": "SBAR text",
+     "size_kB_estimate": 2
+    },
+    {
+     "item": "Vitals trend 24 h",
+     "size_kB_estimate": 20
+    },
+    {
+     "item": "Bio-Analyzer panel",
+     "size_kB_estimate": 5
+    }
+   ],
+   "onboard_tools": [
+    "Bio-Monitor",
+    "Bio-Analyzer",
+    "Thermometer",
+    "Medical kit"
+   ],
+   "no_regret": [
+    "Repeat the vital signs every 15 min",
+    "Run the blood panel if it is available",
+    "Prepare the antibiotic the protocol names; with shock or a high likelihood of sepsis give it at once, without waiting for Earth"
+   ],
+   "red_flags": [
+    "New confusion",
+    "Low or falling blood pressure",
+    "Very fast or difficult breathing"
+   ],
+   "status": "TO_VALIDATE",
+   "sources": [
+    {
+     "title": "Surviving Sepsis Campaign: international guidelines for management of sepsis and septic shock 2021",
+     "url": "https://sccm.org/sepsisguidelines"
+    },
+    {
+     "title": "NASA Human Research Program, Integrated Medical Model v3.0: report for a 16-month Mars transit mission (2017)",
+     "url": "https://www.nasa.gov/wp-content/uploads/2026/08/mars-transit-iva.pdf"
+    }
+   ],
+   "review": "Desk review by the health lead against public guidelines on 14 Nov 2026. The flight protocol and the time to act still need validation."
+  },
+  {
+   "id": "suspected_stroke",
+   "name": "Suspected stroke",
+   "name_es": "Sospecha de ictus",
+   "nasa_basis": "NASA Integrated Medical Model, Mars transit report: among the top drivers of loss of crew life.",
+   "silent": false,
+   "t_crit_min": 60,
+   "t_crit_basis": "Stroke care is time-critical; onboard options are limited, so the decision is about monitoring and supportive care",
+   "earth_best_mode": "live_video",
+   "packet": [
+    {
+     "item": "SBAR text",
+     "size_kB_estimate": 2
+    },
+    {
+     "item": "Short video of face, arms, speech",
+     "size_kB_estimate": 4000
+    }
+   ],
+   "onboard_tools": [
+    "Camera",
+    "Bio-Monitor"
+   ],
+   "no_regret": [
+    "Record time last known well",
+    "Check glucose",
+    "Record the face-arm-speech video"
+   ],
+   "red_flags": [
+    "Reduced consciousness",
+    "Repeated vomiting"
+   ],
+   "status": "TO_VALIDATE",
+   "sources": [
+    {
+     "title": "NASA Human Research Program, Integrated Medical Model v3.0: report for a 16-month Mars transit mission (2017)",
+     "url": "https://www.nasa.gov/wp-content/uploads/2026/08/mars-transit-iva.pdf"
+    }
+   ]
+  },
+  {
+   "id": "appendicitis",
+   "name": "Suspected appendicitis",
+   "name_es": "Sospecha de apendicitis",
+   "nasa_basis": "IMM Mars transit: top driver of loss of crew life; most common patrol-threatening case on Vanguard submarines",
+   "silent": false,
+   "t_crit_min": 720,
+   "t_crit_basis": "Decision window of hours for antibiotics-first management",
+   "earth_best_mode": "live_video",
+   "packet": [
+    {
+     "item": "SBAR text",
+     "size_kB_estimate": 2
+    },
+    {
+     "item": "Vitals trend 24 h",
+     "size_kB_estimate": 20
+    },
+    {
+     "item": "3 ultrasound frames",
+     "size_kB_estimate": 450
+    },
+    {
+     "item": "Bio-Analyzer panel",
+     "size_kB_estimate": 5
+    }
+   ],
+   "onboard_tools": [
+    "Ultrasound",
+    "Bio-Analyzer",
+    "Medical kit"
+   ],
+   "no_regret": [
+    "Nothing by mouth",
+    "Repeat abdominal exam every 2 h",
+    "Capture ultrasound frames with the onboard guide"
+   ],
+   "red_flags": [
+    "Rigid abdomen",
+    "Fever with rising heart rate"
+   ],
+   "status": "TO_VALIDATE",
+   "sources": [
+    {
+     "title": "NASA Human Research Program, Integrated Medical Model v3.0: report for a 16-month Mars transit mission (2017)",
+     "url": "https://www.nasa.gov/wp-content/uploads/2026/08/mars-transit-iva.pdf"
+    }
+   ]
+  },
+  {
+   "id": "renal_colic",
+   "name": "Kidney stone (renal colic)",
+   "name_es": "Cólico renal",
+   "nasa_basis": "NASA Integrated Medical Model, Mars transit report: among the top drivers of evacuation. NASA Urinary Health brief: 43 stone events recorded in 29 crew members, none in flight in the US segment; kidney stones are the second most likely reason for an emergency medical evacuation from the space station in the model.",
+   "silent": false,
+   "t_crit_min": 240,
+   "t_crit_basis": "Team planning value. No guideline gives a single deadline in minutes: NICE NG118 asks for a pain reliever first and imaging within 24 hours. Fever with a blocked kidney is an emergency.",
+   "earth_best_mode": "live_video",
+   "packet": [
+    {
+     "item": "SBAR text",
+     "size_kB_estimate": 2
+    },
+    {
+     "item": "3 ultrasound frames",
+     "size_kB_estimate": 450
+    },
+    {
+     "item": "Urine dipstick photo",
+     "size_kB_estimate": 300
+    }
+   ],
+   "onboard_tools": [
+    "Ultrasound",
+    "Urine test",
+    "Medical kit"
+   ],
+   "no_regret": [
+    "Note the start time, the vital signs and any sign of infection",
+    "Give the pain reliever the protocol names",
+    "Drink normally; do not force fluids",
+    "Strain urine"
+   ],
+   "red_flags": [
+    "Fever",
+    "No urine output",
+    "Pain or vomiting that does not settle"
+   ],
+   "status": "TO_VALIDATE",
+   "sources": [
+    {
+     "title": "NICE guideline NG118, Renal and ureteric stones: assessment and management (2019)",
+     "url": "https://www.nice.org.uk/guidance/ng118/chapter/Recommendations"
+    },
+    {
+     "title": "NASA OCHMO-MTB-003 Rev A, Urinary Health (medical technical brief, 2026)",
+     "url": "https://www.nasa.gov/wp-content/uploads/2025/01/ochmo-mtb-003-urinary-health.pdf"
+    },
+    {
+     "title": "NASA Human Research Program, Integrated Medical Model v3.0: report for a 16-month Mars transit mission (2017)",
+     "url": "https://www.nasa.gov/wp-content/uploads/2026/08/mars-transit-iva.pdf"
+    }
+   ],
+   "review": "Desk review by the health lead against public guidelines on 14 Nov 2026. The flight protocol and the time to act still need validation."
+  },
+  {
+   "id": "urinary_retention_uti",
+   "name": "Urinary retention or infection",
+   "name_es": "Retención o infección urinaria",
+   "nasa_basis": "NASA Integrated Medical Model, Mars transit report: urinary tract infection is among the top drivers of evacuation.",
+   "silent": false,
+   "t_crit_min": 360,
+   "t_crit_basis": "Acute retention needs relief within hours",
+   "earth_best_mode": "async_images",
+   "packet": [
+    {
+     "item": "SBAR text",
+     "size_kB_estimate": 2
+    },
+    {
+     "item": "Bladder ultrasound frame",
+     "size_kB_estimate": 150
+    },
+    {
+     "item": "Urine dipstick photo",
+     "size_kB_estimate": 300
+    }
+   ],
+   "onboard_tools": [
+    "Ultrasound",
+    "Urine test",
+    "Catheter kit"
+   ],
+   "no_regret": [
+    "Measure bladder volume by ultrasound",
+    "Run the urine test"
+   ],
+   "red_flags": [
+    "Fever with flank pain",
+    "Unable to pass urine"
+   ],
+   "status": "TO_VALIDATE",
+   "sources": [
+    {
+     "title": "NASA Human Research Program, Integrated Medical Model v3.0: report for a 16-month Mars transit mission (2017)",
+     "url": "https://www.nasa.gov/wp-content/uploads/2026/08/mars-transit-iva.pdf"
+    },
+    {
+     "title": "NASA OCHMO-MTB-003 Rev A, Urinary Health (medical technical brief, 2026)",
+     "url": "https://www.nasa.gov/wp-content/uploads/2025/01/ochmo-mtb-003-urinary-health.pdf"
+    }
+   ]
+  },
+  {
+   "id": "skin_infection",
+   "name": "Skin infection",
+   "name_es": "Infección de piel",
+   "nasa_basis": "NASA Integrated Medical Model, Mars transit report: the second driver of evacuation.",
+   "silent": false,
+   "t_crit_min": 2880,
+   "t_crit_basis": "Reassess within 24-48 h; faster if spreading",
+   "earth_best_mode": "async_images",
+   "packet": [
+    {
+     "item": "SBAR text",
+     "size_kB_estimate": 2
+    },
+    {
+     "item": "2 photos with scale",
+     "size_kB_estimate": 600
+    }
+   ],
+   "onboard_tools": [
+    "Camera",
+    "Medical kit"
+   ],
+   "no_regret": [
+    "Mark the border with a pen",
+    "Photograph with a scale every 12 h"
+   ],
+   "red_flags": [
+    "Border spreading past the mark",
+    "Fever"
+   ],
+   "status": "TO_VALIDATE",
+   "sources": [
+    {
+     "title": "NASA Human Research Program, Integrated Medical Model v3.0: report for a 16-month Mars transit mission (2017)",
+     "url": "https://www.nasa.gov/wp-content/uploads/2026/08/mars-transit-iva.pdf"
+    }
+   ]
+  },
+  {
+   "id": "herpes_zoster",
+   "name": "Shingles (herpes zoster)",
+   "name_es": "Herpes zóster",
+   "nasa_basis": "IMM Mars transit: top driver of evacuation; herpesvirus reactivation in 61% of ISS crew",
+   "silent": false,
+   "t_crit_min": 4320,
+   "t_crit_basis": "Antivirals work best when started within 72 h of rash onset",
+   "earth_best_mode": "async_images",
+   "packet": [
+    {
+     "item": "SBAR text",
+     "size_kB_estimate": 2
+    },
+    {
+     "item": "2 photos",
+     "size_kB_estimate": 600
+    }
+   ],
+   "onboard_tools": [
+    "Camera",
+    "Medical kit"
+   ],
+   "no_regret": [
+    "Photograph the rash",
+    "Record onset time"
+   ],
+   "red_flags": [
+    "Rash near the eye",
+    "Severe pain"
+   ],
+   "status": "TO_VALIDATE",
+   "sources": [
+    {
+     "title": "NASA Human Research Program, Integrated Medical Model v3.0: report for a 16-month Mars transit mission (2017)",
+     "url": "https://www.nasa.gov/wp-content/uploads/2026/08/mars-transit-iva.pdf"
+    }
+   ]
+  },
+  {
+   "id": "jugular_vte",
+   "name": "Jugular vein thrombosis",
+   "name_es": "Trombosis venosa yugular",
+   "nasa_basis": "Marshall-Goebel 2019: stagnant or reverse flow in the jugular vein of 6 of 11 station crew members at about flight day 50, and one occlusive clot. The clots found had caused no symptoms.",
+   "silent": true,
+   "t_crit_min": 1440,
+   "t_crit_basis": "Anticoagulation decision within about a day once found; found only by scheduled ultrasound",
+   "earth_best_mode": "live_video",
+   "packet": [
+    {
+     "item": "SBAR text",
+     "size_kB_estimate": 2
+    },
+    {
+     "item": "10 s ultrasound clip",
+     "size_kB_estimate": 4000
+    }
+   ],
+   "onboard_tools": [
+    "Ultrasound"
+   ],
+   "no_regret": [
+    "Repeat the scan on the other side",
+    "Save the clip"
+   ],
+   "red_flags": [
+    "Neck swelling",
+    "Headache with facial swelling"
+   ],
+   "status": "TO_VALIDATE",
+   "sources": [
+    {
+     "title": "Marshall-Goebel et al., Assessment of jugular venous blood flow stasis and thrombosis during spaceflight, JAMA Network Open 2019",
+     "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6902784"
+    }
+   ]
+  },
+  {
+   "id": "sans",
+   "name": "SANS (eye and optic nerve changes)",
+   "name_es": "SANS",
+   "nasa_basis": "HRP SANS risk: optic disc edema on OCT in 9 of 13 crew by day 150, only 1 visible on fundus exam",
+   "silent": true,
+   "t_crit_min": 20160,
+   "t_crit_basis": "Develops over weeks; found only by scheduled OCT or ultrasound",
+   "earth_best_mode": "async_images",
+   "packet": [
+    {
+     "item": "SBAR text",
+     "size_kB_estimate": 2
+    },
+    {
+     "item": "OCT scan",
+     "size_kB_estimate": 3000
+    },
+    {
+     "item": "Fundus photo",
+     "size_kB_estimate": 500
+    }
+   ],
+   "onboard_tools": [
+    "OCT",
+    "Fundoscope",
+    "Ultrasound",
+    "Vision chart"
+   ],
+   "no_regret": [
+    "Repeat the vision test",
+    "Run the scheduled OCT"
+   ],
+   "red_flags": [
+    "Sudden change in vision"
+   ],
+   "status": "TO_VALIDATE"
+  },
+  {
+   "id": "sleep_fatigue",
+   "name": "Sleep loss and fatigue",
+   "name_es": "Falta de sueño y fatiga",
+   "nasa_basis": "Barger 2014: 6.09 h of sleep per night on station missions, against 8.5 h scheduled. In the Integrated Medical Model report, sleep disorder has the highest event count.",
+   "silent": true,
+   "t_crit_min": 10080,
+   "t_crit_basis": "Cumulative; act on a week-long trend",
+   "earth_best_mode": "text",
+   "packet": [
+    {
+     "item": "SBAR text",
+     "size_kB_estimate": 2
+    },
+    {
+     "item": "Actigraphy 7 days",
+     "size_kB_estimate": 50
+    },
+    {
+     "item": "Reaction test results",
+     "size_kB_estimate": 5
+    }
+   ],
+   "onboard_tools": [
+    "Actigraph",
+    "Reaction test"
+   ],
+   "no_regret": [
+    "Run the 3-minute reaction test",
+    "Protect the next sleep period"
+   ],
+   "red_flags": [
+    "Reaction lapses doubling",
+    "Sleep under 5 h for 3 nights"
+   ],
+   "status": "TO_VALIDATE",
+   "sources": [
+    {
+     "title": "Barger et al., Prevalence of sleep deficiency and use of hypnotic drugs in astronauts, Lancet Neurology 2014",
+     "url": "https://www.omicsdi.org/dataset/biostudies-literature/S-EPMC4188436"
+    },
+    {
+     "title": "NASA Human Research Program, Integrated Medical Model v3.0: report for a 16-month Mars transit mission (2017)",
+     "url": "https://www.nasa.gov/wp-content/uploads/2026/08/mars-transit-iva.pdf"
+    }
+   ]
+  }
+ ]
+}
