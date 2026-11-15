@@ -5,6 +5,7 @@ import { useApp } from "../../state/AppState";
 import { analyzeVoice, compareVoice, loadVoiceHistory, meanFromHistory, saveVoiceHistory, type PersonalVoiceMean, type VoiceResult } from "../../sensors/voice";
 import type { RppgEstimate } from "../../sensors/rppg";
 import { formatDuration } from "../../engine/link";
+import { sealForEarth } from "../../engine/seal";
 import { latestAt } from "../../engine/status";
 import type { Observation, RegionId } from "../../types";
 import { CameraPulse, ReactionTest } from "../MessageScreen";
@@ -24,6 +25,7 @@ export function CheckinSimple() {
   const [reaction, setReaction] = useState<{ lapses: number; meanMs: number; n: number } | null>(null);
   const [extra, setExtra] = useState({ sleep: "", mood: 0, pain: 0 });
   const [sent, setSent] = useState(false);
+  const [sealed, setSealed] = useState(false);
   const [synthetic, setSynthetic] = useState(false);
   const rec = useRef<MediaRecorder | null>(null);
   const stream = useRef<MediaStream | null>(null);
@@ -36,7 +38,7 @@ export function CheckinSimple() {
   useEffect(() => () => { cancelAnimationFrame(raf.current); window.clearInterval(timer.current); stream.current?.getTracks().forEach((t) => t.stop()); }, []);
 
   async function start() {
-    setError(null); setResult(null); setSent(false); setSynthetic(false);
+    setError(null); setResult(null); setSent(false); setSealed(false); setSynthetic(false);
     try {
       const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false } });
       stream.current = s;
@@ -72,7 +74,7 @@ export function CheckinSimple() {
     const sr = latestAt(idx.get(crewId)?.get("speech_rate"), day), pf = latestAt(idx.get(crewId)?.get("pause_fraction"), day);
     if (!sr || !pf) return;
     setResult(compareVoice({ durationS: 45, speakingTimeS: 35, speechRate: sr.value, pauseFraction: pf.value, f0MedianHz: null, f0VariabilitySt: null, snrDb: 30, quality: 0.9 }, mean));
-    setPhase("done"); setSynthetic(true); setSent(false);
+    setPhase("done"); setSynthetic(true); setSent(false); setSealed(false);
   }
 
   const slow = result?.comparisons.find((c) => c.signal === "speech_rate" && c.status === "amber");
@@ -80,6 +82,7 @@ export function CheckinSimple() {
   const voiceOk = result && result.features.speechRate > 0 && !slow && !pauses;
 
   function send() {
+    let sentObs: Observation[] = [];
     if (!synthetic) {
       const t = new Date().toISOString();
       const o = (signal: string, value: number, unit: string, source: string, method: Observation["method"], region: RegionId): Observation =>
@@ -95,8 +98,11 @@ export function CheckinSimple() {
       if (extra.mood) out.push(o("mood", extra.mood, "1-5", "questionnaire", "self_report", "brain"));
       if (extra.pain) out.push(o("pain", extra.pain, "0-10", "questionnaire", "self_report", "kidneys"));
       addObservations(out);
+      sentObs = out;
     }
     setSent(true);
+    // what is sent leaves encrypted (AES-256-GCM); "Earth" is this same page with the same demo key
+    void sealForEarth({ crew: crewId, day, obs: sentObs.map((p) => [p.signal, p.value, p.unit, p.method]) }).then((r) => setSealed(!!r?.opened));
   }
 
   return (
@@ -169,7 +175,7 @@ export function CheckinSimple() {
       </button>
       <p className="center small muted">
         {sent
-          ? link.hasLink ? `Earth receives it in about ${formatDuration(link.owltS / 60)}.` : `No contact now: it goes out in ${formatDuration(link.waitMin)}.`
+          ? `${link.hasLink ? `Earth receives it in about ${formatDuration(link.owltS / 60)}.` : `No contact now: it goes out in ${formatDuration(link.waitMin)}.`}${sealed ? " It travels encrypted." : ""}`
           : "Only numbers are sent, never your voice or face. You decide what goes."}
       </p>
     </div>

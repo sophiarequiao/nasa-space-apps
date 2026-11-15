@@ -7,10 +7,26 @@ import { Card, Segmented, Stat, StatusPill, Tag } from "../components/ui";
 import { analyzeVoice, compareVoice, loadVoiceHistory, meanFromHistory, saveVoiceHistory, type PersonalVoiceMean, type VoiceResult } from "../sensors/voice";
 import { RppgEstimator, sampleSkin, type RppgEstimate } from "../sensors/rppg";
 import { formatDuration } from "../engine/link";
+import { sealForEarth, type SealReport } from "../engine/seal";
 import type { CrewId, Observation, RegionId } from "../types";
 import { latestAt } from "../engine/status";
+import { signalLabel } from "../engine/signals";
 
 const MAX_S = 30;
+
+// The sensor lab (public/lab/) keeps the last check-in it sent in this browser, as numbers only.
+// The astronaut can add it to this message; it never arrives on its own.
+const LAB_KEY = "sospesai.lab.lastCheckin";
+const LAB_MAX_AGE_MS = 12 * 3600_000;
+const REGION_IDS: RegionId[] = ["brain", "eyes", "neck", "heart", "lungs", "musculoskeletal", "kidneys", "blood", "skin"];
+interface LabObservation { signal: string; value: number; unit: string; source?: string; quality?: number; region?: string }
+interface LabCheckin { mode: string; saved_at: number; observations: LabObservation[] }
+function readLab(): LabCheckin | null {
+  try {
+    const d = JSON.parse(localStorage.getItem(LAB_KEY) ?? "null");
+    return d && Array.isArray(d.observations) && typeof d.saved_at === "number" ? (d as LabCheckin) : null;
+  } catch { return null; }
+}
 
 export function MessageScreen() {
   const { data, crewId, setCrewId, day, date, link, addObservations, idx, setScreen } = useApp();
@@ -24,9 +40,12 @@ export function MessageScreen() {
   const [pulse, setPulse] = useState<RppgEstimate | null>(null);
   const [share, setShare] = useState({ voice: true, pulse: true, manual: true, reaction: true });
   const [sentAt, setSentAt] = useState<number | null>(null);
+  const [sealed, setSealed] = useState<SealReport | null>(null);
   const [manual, setManual] = useState<Record<string, string>>({});
   const [reaction, setReaction] = useState<{ lapses: number; meanMs: number; n: number } | null>(null);
   const [isSynthetic, setIsSynthetic] = useState(false);
+  const [lab, setLab] = useState<LabCheckin | null>(readLab);
+  const [useLab, setUseLab] = useState(false);
 
   const recRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -41,6 +60,16 @@ export function MessageScreen() {
     : crewBaseline ? { speechRate: crewBaseline.speech_rate.flight_mean, pauseFraction: crewBaseline.pause_fraction.flight_mean, source: `${crewId} synthetic baseline` } : null;
 
   useEffect(() => () => stopAll(), []);
+  useEffect(() => {
+    // the lab runs in another tab: read its last check-in again when it changes or when this tab comes back
+    const refresh = () => setLab(readLab());
+    window.addEventListener("storage", refresh); window.addEventListener("focus", refresh);
+    return () => { window.removeEventListener("storage", refresh); window.removeEventListener("focus", refresh); };
+  }, []);
+  // only a live check-in of the last hours is offered; a simulated one is never added to real data
+  const labValues = lab && lab.mode === "live" && Date.now() - lab.saved_at < LAB_MAX_AGE_MS
+    ? lab.observations.filter((x) => typeof x.value === "number" && isFinite(x.value) && (x.quality ?? 1) >= 0.4)
+    : [];
 
   function stopAll() {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -50,7 +79,7 @@ export function MessageScreen() {
   }
 
   async function start() {
-    setError(null); setResult(null); setSentAt(null); setIsSynthetic(false);
+    setError(null); setResult(null); setSentAt(null); setSealed(null); setIsSynthetic(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false } });
       streamRef.current = stream;
@@ -106,7 +135,7 @@ export function MessageScreen() {
     const sr = get("speech_rate"), pf = get("pause_fraction"), md = get("message_duration"), hr = get("heart_rate");
     if (!sr || !pf) return;
     const r = compareVoice({ durationS: md?.value ?? 45, speakingTimeS: (md?.value ?? 45) * (1 - pf.value), speechRate: sr.value, pauseFraction: pf.value, f0MedianHz: null, f0VariabilitySt: null, snrDb: 30, quality: sr.quality }, mean);
-    setResult(r); setIsSynthetic(true); setSentAt(null);
+    setResult(r); setIsSynthetic(true); setSentAt(null); setSealed(null);
     if (hr) setPulse({ bpm: hr.value, quality: hr.quality, seconds: 20, fps: 30 });
   }
 
@@ -124,6 +153,13 @@ export function MessageScreen() {
     }
     if (share.pulse && pulse?.bpm && pulse.quality > 0.3) out.push(o("heart_rate", pulse.bpm, "bpm", "camera_rppg", "estimated", "heart", pulse.quality));
     if (share.reaction && reaction) out.push(o("reaction_lapses", reaction.lapses, "lapses", "reaction_test", "clinical", "brain"));
+    if (useLab) {
+      for (const x of labValues) {
+        if (out.some((p) => p.signal === x.signal)) continue; // already measured in this message
+        const region = REGION_IDS.includes(x.region as RegionId) ? (x.region as RegionId) : "brain";
+        out.push(o(x.signal, x.value, x.unit, x.source ?? "camera", "estimated", region, x.quality ?? 1));
+      }
+    }
     if (share.manual) {
       const num = (k: string) => (manual[k] !== undefined && manual[k] !== "" ? Number(manual[k]) : null);
       const m: [string, string, string, string, RegionId][] = [
@@ -140,6 +176,13 @@ export function MessageScreen() {
   const packet = JSON.stringify({ crew: crewId, day, date, summary: result?.summary, obs: pending.map((p) => [p.signal, p.value, p.unit, p.method]) });
   const bytes = new TextEncoder().encode(packet).length;
   const etaMin = link.waitMin + link.owltS / 60;
+
+  // What is approved leaves encrypted (AES-256-GCM). "Earth" is this same page, holding the same demo key.
+  async function send() {
+    if (pending.length) addObservations(pending);
+    setSentAt(Date.now());
+    setSealed(await sealForEarth(JSON.parse(packet)));
+  }
 
   return (
     <div className="grid message-grid">
@@ -216,6 +259,17 @@ export function MessageScreen() {
           </div>
         </Card>
 
+        <Card title="Sensor lab" subtitle="More from the camera and the microphone, on one page. Experimental.">
+          <p className="small">Eyelids and blink rate, head posture and movement, shoulders and trunk (optional), a held vowel, pulse with face tracking and an early warning against your own baseline. Everything is measured on this device and only numbers are kept.</p>
+          <a className="btn ghost sm" href={`${import.meta.env.BASE_URL}lab/tools/demo.html`} target="_blank" rel="noopener">Open the sensor lab</a>
+          {lab && labValues.length > 0 && (
+            <p><label className="check"><input type="checkbox" checked={useLab} onChange={(e) => setUseLab(e.target.checked)} /> Add the last lab check-in to this message ({labValues.length} values, sent at {new Date(lab.saved_at).toLocaleTimeString()})</label></p>
+          )}
+          {useLab && labValues.length > 0 && <p className="tiny muted">{labValues.map((x) => `${signalLabel(x.signal)} ${x.value} ${x.unit}`).join(" · ")}</p>}
+          {lab && lab.mode !== "live" && <p className="tiny muted">The last lab check-in was simulated, so it is not offered here.</p>}
+          <p className="tiny muted">The lab uses MediaPipe (Apache-2.0): its face model is downloaded from Google the first time the camera is used. Its signals are compared only with your own baseline and do not colour the body yet.</p>
+        </Card>
+
         <Card title="Send to Earth" subtitle="You choose what is shared. Nothing leaves without your approval.">
           <div className="row wrap gap-s">
             {(Object.keys(share) as (keyof typeof share)[]).map((k) => (
@@ -228,7 +282,7 @@ export function MessageScreen() {
               ? <>Arrives on Earth in <b>{formatDuration(etaMin)}</b></>
               : <>No link now ({link.noLinkReason}). Queued: arrives in <b>{formatDuration(etaMin)}</b></>}
           </p>
-          <button className="btn primary" disabled={!pending.length && !isSynthetic} onClick={() => { if (pending.length) addObservations(pending); setSentAt(Date.now()); }}>
+          <button className="btn primary" disabled={!pending.length && !isSynthetic} onClick={() => void send()}>
             {isSynthetic ? "Send (synthetic: already in the data)" : "Approve and send"}
           </button>
           {sentAt && (
@@ -236,6 +290,13 @@ export function MessageScreen() {
               Sent at {new Date(sentAt).toLocaleTimeString()} · Earth receives it at {new Date(sentAt + etaMin * 60000).toLocaleTimeString()}.
               {pending.length > 0 && <> Your values are now in the body view. <button className="linkbtn" onClick={() => setScreen("body")}>Open body →</button></>}
             </p>
+          )}
+          {sentAt && sealed && (
+            <div className="banner info small">
+              <p><b>Encrypted on this device before it leaves</b> (AES-256-GCM): {sealed.clearBytes} bytes of numbers travel as {sealed.wireBytes} bytes, message number {sealed.counter}. {sealed.opened ? "Earth opens it with the mission key and reads the same values." : "Earth could not open it."}</p>
+              <p className="tiny muted seal-hex">{sealed.hex}…</p>
+              <p className="tiny muted">Demo key created in this browser; a mission loads its own key before launch. Not audited.</p>
+            </div>
           )}
         </Card>
       </div>
