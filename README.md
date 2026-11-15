@@ -17,7 +17,7 @@ In January 2026 the International Space Station had its [first medical evacuatio
 
 On 15 November 2026 a message takes 654 seconds, just under 11 minutes, to travel from Mars to Earth. The fastest possible answer to a medical question therefore takes about 37 minutes: almost 22 minutes of light travel there and back, plus the time the ground team needs to read and reply (we assume 15 minutes). From 13 to 29 March 2028 Mars is within 2° of the Sun as seen from Earth and there is no reliable link at all.
 
-| Situation (time to act) | Space station: Earth answers in 15 min | Mars surface, 15 Nov 2026: 37 min | Mars surface, 20 Mar 2028: no link for 9 more days |
+| Situation (time to act) | Mars at its closest, 11 Sep 2035: Earth answers in 22 min | Mars, 15 Nov 2026: 37 min | Mars, 20 Mar 2028: no link for 9 more days |
 |---|---|---|---|
 | Chemical eye burn (5 min) | The crew decides | The crew decides | The crew decides |
 | Suspected stroke (60 min) | Decide together | Decide together | The crew decides |
@@ -28,6 +28,8 @@ The engine reduces each case to one number, `A = time for Earth's answer / time 
 - `A ≤ 0.25`: Earth leads and the crew carries it out.
 - `0.25 < A ≤ 1`: decide together. The crew starts the actions that cannot make things worse, sends a summary and re-checks when Earth's answer arrives.
 - `A > 1`: the crew decides and reports afterwards.
+
+Even on the space station, where the ground can answer in about 15 minutes, the crew decides for a chemical eye burn: there are only 5 minutes.
 
 The times to act, the 15 minute ground response and the two thresholds are team assumptions. A clinician has not validated them yet; they are marked `TO_VALIDATE` in `data/condition_cards.json`.
 

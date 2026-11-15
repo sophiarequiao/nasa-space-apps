@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" font-family="Bahnschrift, 'DIN Alternate', 'Roboto Condensed', 'Segoe UI', Arial, sans-serif" role="img" aria-label="Who decides for four situations in four places">
+<rect width="1200" height="600" fill="#EEF1F4"/>
+<text x="60" y="58" font-size="34" font-weight="600" fill="#10202E">The same problem, a different answer</text>
+<text x="60" y="90" font-size="18" fill="#566676">Who decides: the time Earth needs to answer on that day, against the time the crew can wait.</text>
+<text x="407.5" y="140" text-anchor="middle" font-size="19" font-weight="600" fill="#10202E">Space station</text><text x="407.5" y="162" text-anchor="middle" font-size="15" fill="#566676">any day</text><text x="407.5" y="182" text-anchor="middle" font-size="15" fill="#566676">Earth answers in 15 min</text>
+<rect x="300" y="196" width="215" height="78" fill="#F6DFD6"/><text x="407.5" y="243" text-anchor="middle" font-size="22" font-weight="600" fill="#B4421F">The crew decides</text>
+<rect x="300" y="280" width="215" height="78" fill="#FBEBC8"/><text x="407.5" y="327" text-anchor="middle" font-size="22" font-weight="600" fill="#8A5000">Decide together</text>
+<rect x="300" y="364" width="215" height="78" fill="#DCE7FA"/><text x="407.5" y="411" text-anchor="middle" font-size="22" font-weight="600" fill="#1857C4">Earth leads</text>
+<rect x="300" y="448" width="215" height="78" fill="#DCE7FA"/><text x="407.5" y="495" text-anchor="middle" font-size="22" font-weight="600" fill="#1857C4">Earth leads</text>
+<text x="628.5" y="140" text-anchor="middle" font-size="19" font-weight="600" fill="#10202E">Mars today</text><text x="628.5" y="162" text-anchor="middle" font-size="15" fill="#566676">15 Nov 2026</text><text x="628.5" y="182" text-anchor="middle" font-size="15" fill="#566676">Earth answers in 37 min</text>
+<rect x="521" y="196" width="215" height="78" fill="#F6DFD6"/><text x="628.5" y="243" text-anchor="middle" font-size="22" font-weight="600" fill="#B4421F">The crew decides</text>
+<rect x="521" y="280" width="215" height="78" fill="#FBEBC8"/><text x="628.5" y="327" text-anchor="middle" font-size="22" font-weight="600" fill="#8A5000">Decide together</text>
+<rect x="521" y="364" width="215" height="78" fill="#DCE7FA"/><text x="628.5" y="411" text-anchor="middle" font-size="22" font-weight="600" fill="#1857C4">Earth leads</text>
+<rect x="521" y="448" width="215" height="78" fill="#DCE7FA"/><text x="628.5" y="495" text-anchor="middle" font-size="22" font-weight="600" fill="#1857C4">Earth leads</text>
+<text x="849.5" y="140" text-anchor="middle" font-size="19" font-weight="600" fill="#10202E">Mars near its farthest</text><text x="849.5" y="162" text-anchor="middle" font-size="15" fill="#566676">3 Sep 2034</text><text x="849.5" y="182" text-anchor="middle" font-size="15" fill="#566676">Earth answers in 61 min</text>
+<rect x="742" y="196" width="215" height="78" fill="#F6DFD6"/><text x="849.5" y="243" text-anchor="middle" font-size="22" font-weight="600" fill="#B4421F">The crew decides</text>
+<rect x="742" y="280" width="215" height="78" fill="#F6DFD6"/><text x="849.5" y="327" text-anchor="middle" font-size="22" font-weight="600" fill="#B4421F">The crew decides</text>
+<rect x="742" y="364" width="215" height="78" fill="#FBEBC8"/><text x="849.5" y="411" text-anchor="middle" font-size="22" font-weight="600" fill="#8A5000">Decide together</text>
+<rect x="742" y="448" width="215" height="78" fill="#DCE7FA"/><text x="849.5" y="495" text-anchor="middle" font-size="22" font-weight="600" fill="#1857C4">Earth leads</text>
+<text x="1070.5" y="140" text-anchor="middle" font-size="19" font-weight="600" fill="#10202E">Mars behind the Sun</text><text x="1070.5" y="162" text-anchor="middle" font-size="15" fill="#566676">20 Mar 2028</text><text x="1070.5" y="182" text-anchor="middle" font-size="15" fill="#566676">no link for 9.5 days</text>
+<rect x="963" y="196" width="215" height="78" fill="#F6DFD6"/><text x="1070.5" y="243" text-anchor="middle" font-size="22" font-weight="600" fill="#B4421F">The crew decides</text>
+<rect x="963" y="280" width="215" height="78" fill="#F6DFD6"/><text x="1070.5" y="327" text-anchor="middle" font-size="22" font-weight="600" fill="#B4421F">The crew decides</text>
+<rect x="963" y="364" width="215" height="78" fill="#F6DFD6"/><text x="1070.5" y="411" text-anchor="middle" font-size="22" font-weight="600" fill="#B4421F">The crew decides</text>
+<rect x="963" y="448" width="215" height="78" fill="#F6DFD6"/><text x="1070.5" y="495" text-anchor="middle" font-size="22" font-weight="600" fill="#B4421F">The crew decides</text>
+<text x="60" y="233" font-size="21" font-weight="600" fill="#10202E">Chemical eye burn</text><text x="60" y="257" font-size="15" fill="#566676">act within 5 min</text>
+<text x="60" y="317" font-size="21" font-weight="600" fill="#10202E">Suspected stroke</text><text x="60" y="341" font-size="15" fill="#566676">act within 60 min</text>
+<text x="60" y="401" font-size="21" font-weight="600" fill="#10202E">Kidney stone</text><text x="60" y="425" font-size="15" fill="#566676">act within 4 h</text>
+<text x="60" y="485" font-size="21" font-weight="600" fill="#10202E">Skin infection</text><text x="60" y="509" font-size="15" fill="#566676">act within 2 days</text>
+<text x="60" y="552" font-size="15" fill="#10202E">Light time from NASA/JPL data (checked against JPL Horizons). Ground response of 15 min and times to act are team planning values, not clinical deadlines.</text>
+<text x="60" y="576" font-size="14" fill="#566676">Computed by src/engine/authority.js. Redraw with: node tools/make_decision_figure.mjs</text>
+</svg>
