@@ -294,7 +294,6 @@ export function HealthBody3D({ height = 520, autoRotate = false, transparent = f
         <OrbitControls enablePan={false} enableZoom={false} minPolarAngle={Math.PI / 2 - 0.12} maxPolarAngle={Math.PI / 2 - 0.12} autoRotate={autoRotate} autoRotateSpeed={1.2} />
       </Canvas>
       {tip && <div className="body-tip" style={{ left: tip.x + 14, top: tip.y + 10 }}>{tip.text}</div>}
-      <span className="ai-mark">AI-generated 3D model</span>
     </div>
   );
 }
