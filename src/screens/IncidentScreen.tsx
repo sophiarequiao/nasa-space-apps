@@ -66,7 +66,7 @@ export function IncidentScreen() {
           </div>
         </Card>
 
-        <Card title={`2 · Signals compatible with: ${card.name}`} subtitle="This is not a diagnosis. A person decides." actions={<Tag tone="warn">{card.status}</Tag>}>
+        <Card title={`2 · Signals compatible with: ${card.name}`} actions={<Tag tone="warn">{card.status}</Tag>}>
           {regionSignals.length + vitalSignals.length === 0 && <p className="muted">No data today for this region. Measure first: {card.onboard_tools.join(", ")}.</p>}
           <ul className="sig-list">
             {[...regionSignals, ...vitalSignals].map((s) => (

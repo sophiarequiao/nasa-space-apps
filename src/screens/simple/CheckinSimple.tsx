@@ -136,7 +136,7 @@ export function CheckinSimple() {
           ) : (
             <>
               <p className="answer-main">Your voice sounds {slow ? "slower" : ""}{slow && pauses ? " and " : ""}{pauses ? "more hesitant" : ""} than usual.</p>
-              <p>This often happens when you are tired. It is not a diagnosis.</p>
+              <p>This often happens when you are tired.</p>
               {!showTest && <button className="btn primary" onClick={() => setShowTest(true)}>Do the quick reaction test</button>}
             </>
           )}

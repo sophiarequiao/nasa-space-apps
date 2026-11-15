@@ -40,7 +40,7 @@ export function indexObservations(obs: Observation[]): ObsIndex {
     if (!list) bySignal.set(o.signal, (list = []));
     list.push(o);
   }
-  for (const bySignal of idx.values()) for (const list of bySignal.values()) list.sort((a, b) => a.day - b.day || a.time.localeCompare(b.time));
+  for (const bySignal of idx.values()) for (const list of bySignal.values()) list.sort((a, b) => a.day - b.day || (a.scenario ? 1 : 0) - (b.scenario ? 1 : 0) || a.time.localeCompare(b.time));
   return idx;
 }
 

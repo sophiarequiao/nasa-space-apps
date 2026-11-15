@@ -493,3 +493,26 @@ html.glass-body body { background: transparent; }
   .pillbar { justify-content: flex-start; }
   .mon-stage { min-height: 520px; }
 }
+.body-tip { position: absolute; z-index: 5; pointer-events: none; background: rgba(20, 20, 24, 0.85); border: 1px solid rgba(255, 255, 255, 0.18); color: #fff; font-size: 0.8rem; font-weight: 600; padding: 5px 10px; border-radius: 999px; white-space: nowrap; backdrop-filter: blur(8px); }
+.stage-legend { margin-top: 26px; }
+.g-fold { padding: 0; }
+.g-fold > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 14px 16px; }
+.g-fold > summary::-webkit-details-marker { display: none; }
+.g-fold > summary .g-title { margin: 0; flex: 1; }
+.g-fold > summary::after { content: ""; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); transition: transform 0.2s; margin: -4px 4px 0 0; }
+.g-fold[open] > summary::after { transform: rotate(-135deg); margin-top: 4px; }
+.g-fold > :not(summary) { margin-left: 16px; margin-right: 16px; }
+.g-fold[open] { padding-bottom: 14px; }
+.g-count { font-size: 0.75rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); color: var(--text); }
+.c-ok { background: rgba(47, 179, 107, 0.2); color: #9fe6bd; }
+.c-todo { background: rgba(240, 160, 32, 0.22); color: #ffd393; }
+.g-fold .g-btn { width: calc(100% - 32px); }
+.v-fold > summary { list-style: none; cursor: pointer; }
+.v-fold > summary::-webkit-details-marker { display: none; }
+.v-fold > summary::after { content: ""; align-self: center; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); transition: transform 0.2s; margin: -4px 2px 0 4px; flex: none; }
+.v-fold[open] > summary::after { transform: rotate(-135deg); margin-top: 4px; }
+.v-fold > summary > div { flex: 1; }
+.v-fold:not([open]) { padding-bottom: 12px; }
+.applied { list-style: none; padding: 0; margin: 4px 0; }
+.applied li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 0.86rem; }
+.mini-regions { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
