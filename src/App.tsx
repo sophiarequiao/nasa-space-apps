@@ -36,6 +36,10 @@ function Shell() {
         {!expert && screen === "learn" && <GuideSimple />}
         {expert && <ExpertScreens screen={screen} />}
       </main>
+      <footer className="app-foot">
+        Decision-support prototype. Not a medical device. It does not diagnose. Crew data are synthetic.
+        Built with AI assistance; the 3D body model is AI-generated. Uses NASA data; not endorsed by NASA.
+      </footer>
     </div>
   );
 }
