@@ -3,13 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "../../state/AppState";
 import { analyzeVoice, compareVoice, loadVoiceHistory, meanFromHistory, saveVoiceHistory, type PersonalVoiceMean, type VoiceResult } from "../../sensors/voice";
-import type { RppgEstimate } from "../../sensors/rppg";
 import { formatDuration } from "../../engine/link";
 import { sealForEarth } from "../../engine/seal";
-import { LAB_URL, labObservations, readLab, usableLabValues, watchLab } from "../../sensors/lab";
+import { labObservations, type LabObservation } from "../../sensors/lab";
+import { startCamera, stopCamera } from "../../sensors/camera";
 import { latestAt } from "../../engine/status";
 import type { Observation, RegionId } from "../../types";
-import { CameraPulse, ReactionTest } from "../MessageScreen";
+import { ReactionTest } from "../MessageScreen";
 
 const MAX_S = 30;
 
@@ -20,30 +20,33 @@ export function CheckinSimple() {
   const [level, setLevel] = useState(0);
   const [result, setResult] = useState<VoiceResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [camera, setCamera] = useState(false);
-  const [pulse, setPulse] = useState<RppgEstimate | null>(null);
+  const [camera, setCamera] = useState(true);
+  const [camState, setCamState] = useState("");
+  const [camObs, setCamObs] = useState<LabObservation[]>([]);
+  const video = useRef<HTMLVideoElement>(null);
   const [showTest, setShowTest] = useState(false);
   const [reaction, setReaction] = useState<{ lapses: number; meanMs: number; n: number } | null>(null);
   const [extra, setExtra] = useState({ sleep: "", mood: 0, pain: 0 });
   const [sent, setSent] = useState(false);
   const [sealed, setSealed] = useState(false);
-  const [lab, setLab] = useState(readLab);
-  const [useLab, setUseLab] = useState(true);
-  useEffect(() => watchLab(setLab), []);
-  const labValues = usableLabValues(lab);
   const [synthetic, setSynthetic] = useState(false);
   const rec = useRef<MediaRecorder | null>(null);
   const stream = useRef<MediaStream | null>(null);
   const raf = useRef(0);
   const timer = useRef(0);
 
+  // the camera runs while the message is being recorded (the video element exists only then)
+  useEffect(() => {
+    if (phase !== "rec" || !camera || !video.current) return;
+    startCamera(video.current, crewId, setCamState).catch(() => setCamState("off"));
+  }, [phase, camera, crewId]);
   const own = meanFromHistory(loadVoiceHistory());
   const b = data.baselines.baselines[crewId];
   const mean: PersonalVoiceMean | null = own ?? (b ? { speechRate: b.speech_rate.flight_mean, pauseFraction: b.pause_fraction.flight_mean, source: `${crewId} reference` } : null);
-  useEffect(() => () => { cancelAnimationFrame(raf.current); window.clearInterval(timer.current); stream.current?.getTracks().forEach((t) => t.stop()); }, []);
+  useEffect(() => () => { stopCamera(); cancelAnimationFrame(raf.current); window.clearInterval(timer.current); stream.current?.getTracks().forEach((t) => t.stop()); }, []);
 
   async function start() {
-    setError(null); setResult(null); setSent(false); setSealed(false); setSynthetic(false);
+    setError(null); setResult(null); setSent(false); setSealed(false); setSynthetic(false); setCamObs([]); setCamState("");
     try {
       const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false } });
       stream.current = s;
@@ -60,6 +63,7 @@ export function CheckinSimple() {
         cancelAnimationFrame(raf.current); window.clearInterval(timer.current);
         s.getTracks().forEach((t) => t.stop()); void ctx.close();
         setLevel(0); setPhase("done");
+        setCamObs(stopCamera());
         try {
           const res = await analyzeVoice(new Blob(chunks, { type: r.mimeType }), mean);
           setResult(res);
@@ -79,7 +83,7 @@ export function CheckinSimple() {
     const sr = latestAt(idx.get(crewId)?.get("speech_rate"), day), pf = latestAt(idx.get(crewId)?.get("pause_fraction"), day);
     if (!sr || !pf) return;
     setResult(compareVoice({ durationS: 45, speakingTimeS: 35, speechRate: sr.value, pauseFraction: pf.value, f0MedianHz: null, f0VariabilitySt: null, snrDb: 30, quality: 0.9 }, mean));
-    setPhase("done"); setSynthetic(true); setSent(false); setSealed(false);
+    setPhase("done"); setSynthetic(true); setSent(false); setSealed(false); setCamObs([]);
   }
 
   const slow = result?.comparisons.find((c) => c.signal === "speech_rate" && c.status === "amber");
@@ -97,12 +101,11 @@ export function CheckinSimple() {
         out.push(o("speech_rate", +result.features.speechRate.toFixed(2), "syllables/s", "microphone", "estimated", "brain"));
         out.push(o("pause_fraction", +result.features.pauseFraction.toFixed(2), "fraction", "microphone", "estimated", "brain"));
       }
-      if (pulse?.bpm && pulse.quality > 0.3) out.push(o("heart_rate", pulse.bpm, "bpm", "camera_rppg", "estimated", "heart"));
       if (reaction) out.push(o("reaction_lapses", reaction.lapses, "lapses", "reaction_test", "clinical", "brain"));
       if (extra.sleep) out.push(o("sleep", Number(extra.sleep), "h", "manual", "self_report", "brain"));
       if (extra.mood) out.push(o("mood", extra.mood, "1-5", "questionnaire", "self_report", "brain"));
       if (extra.pain) out.push(o("pain", extra.pain, "0-10", "questionnaire", "self_report", "kidneys"));
-      if (useLab && labValues.length) out.push(...labObservations(labValues, out, crewId, day, t));
+      if (camObs.length) out.push(...labObservations(camObs, out, crewId, day, t));
       addObservations(out);
       sentObs = out;
     }
@@ -114,8 +117,15 @@ export function CheckinSimple() {
   return (
     <div className="simple narrow">
       <h2>Daily message to Earth</h2>
-      <p className="muted">Talk to home as you always do. While you speak, the app listens to how your voice sounds. Nothing is recorded or kept.</p>
+      <p className="muted">Talk to home as you always do, looking at the camera. The app reads your voice, eyes and posture. Nothing is recorded or kept.</p>
 
+      {phase === "rec" && camera && (
+        <div className="cam-big">
+          <video ref={video} playsInline muted />
+          <div className="cam-oval" />
+          <span className="cam-chip">{camState === "ok" || camState === "measuring" ? "Face found" : camState === "no_face" ? "Look at the camera" : camState === "off" ? "Video only: face reading did not start" : "Starting camera…"}</span>
+        </div>
+      )}
       <div className="big-rec">
         <button className={`rec-btn xl ${phase === "rec" ? "on" : ""}`} onClick={phase === "rec" ? stop : start} aria-label={phase === "rec" ? "Stop" : "Record"}>
           <span className="rec-dot" />
@@ -128,12 +138,9 @@ export function CheckinSimple() {
       </div>
       <div className="row wrap gap">
         <button className="linkbtn small" onClick={example}>No microphone? Use {crewId}'s example message</button>
-        <label className="check small"><input type="checkbox" checked={camera} onChange={(e) => setCamera(e.target.checked)} /> Also take my pulse with the camera (experimental)</label>
-        <a className="linkbtn small" href={LAB_URL} target="_blank" rel="noopener">Camera check: eyes and posture</a>
-        {labValues.length > 0 && <label className="check small"><input type="checkbox" checked={useLab} onChange={(e) => setUseLab(e.target.checked)} /> Add my camera check</label>}
+        <label className="check small"><input type="checkbox" checked={camera} disabled={phase === "rec"} onChange={(e) => setCamera(e.target.checked)} /> Camera on (eyes, posture, pulse)</label>
       </div>
       {error && <p className="banner warn small">{error}</p>}
-      {camera && <CameraPulse onEstimate={setPulse} />}
 
       {result && (
         <section className={`panel answer ${voiceOk ? "ok" : "watch"}`}>
@@ -148,7 +155,7 @@ export function CheckinSimple() {
               {!showTest && <button className="btn primary" onClick={() => setShowTest(true)}>Do the quick reaction test</button>}
             </>
           )}
-          {pulse?.bpm && pulse.quality > 0.3 && <p className="small">Pulse from the camera: about <b>{pulse.bpm}</b> beats per minute.</p>}
+          {camObs.length > 0 && <p className="small">Camera: {camObs.find((x) => x.signal === "heart_rate") ? <>pulse about <b>{camObs.find((x) => x.signal === "heart_rate")!.value}</b> bpm, </> : ""}eyes and posture measured.</p>}
           {synthetic && <p className="tiny muted">Example from the synthetic data set.</p>}
         </section>
       )}
@@ -178,7 +185,7 @@ export function CheckinSimple() {
         {extra.pain >= 7 && <p className="banner warn small">Strong pain: tell the medical officer and open <button className="linkbtn" onClick={() => setScreen("incident")}>Help</button>.</p>}
       </section>
 
-      <button className="btn big primary full" onClick={send} disabled={sent || (!result && !extra.sleep && !extra.mood && !extra.pain && !(useLab && labValues.length))}>
+      <button className="btn big primary full" onClick={send} disabled={sent || (!result && !extra.sleep && !extra.mood && !extra.pain && camObs.length === 0)}>
         {sent ? "Sent" : "Send to Earth"}
       </button>
       <p className="center small muted">
