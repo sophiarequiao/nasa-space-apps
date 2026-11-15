@@ -24,26 +24,22 @@ usually answered separately:
 The same app works for every mission profile: ISS, lunar orbit, lunar south pole (with or without relay),
 Mars transit, Mars surface and Earth analogs.
 
-## Two views
+## Screens
 
-- **Crew view (default)**: for crew members who are not doctors. Four everyday screens with big buttons and plain words: **Today** (who am I, how am I, what do I do now), **Check-in** (talk to Earth, mood, sleep, pain), **Help** (what is happening → who decides → steps to do now → what we have) and **Kit** (ready / use with care / missing, and what we can no longer do).
-- **Medical officer view** (switch at the top right): every screen below, with the numbers, bands, protocols and the simulator.
+The app is made for crew members who are not doctors: big buttons, plain words, no statistics on the main screens.
+Five screens, always one tap away, with the crew member, the mission, the day and the delay to Earth at the top.
 
-## Screens (medical officer view)
+1. **Today**: how am I today. The 3D body is split into parts anyone recognises (head, neck, shoulders, chest, hip, arms, legs, feet) with the eyes, heart and kidneys drawn on top; only what needs attention is coloured, with a pulsing marker. On the left, "Needs action now" in plain words and a **Get help now** button, then folds for *To do today*, *Daily message*, *Radiation* (NASA figures for the chosen mission) and *Not checked recently*. On the right, heart rate from the smart shirt (simulated stream, ECG trace) and blood pressure, temperature and sleep cards that open by themselves when something is off.
+2. **Check-in**: the daily message to Earth with camera and microphone at the same time. Voice (speech rate, pauses, pitch) and camera (blinking, eyes closed, posture, pulse) are compared with the person's own normal; if something is outside it, a warning with **What to do** opens Help. Mood, sleep and pain in three taps. Sending to Earth is optional and leaves encrypted (AES-256-GCM).
+3. **Help**: opens directly on today's problem for that crew member (for example renal colic for CM-4 on day 52, suspected sepsis for CM-3 on day 44). It says who decides (*Earth leads* / *Start now, Earth confirms* / *You decide now*), when Earth answers and how much time there is, the steps to do now, when to call the medical officer and what is on board. With no condition card, it lists what to keep an eye on today.
+4. **Kit**: ready / use with care (drugs with stability alerts in space) / missing or broken, what can no longer be done because of it, and **Something broke or ran out?**.
+5. **Guide**: when to call the medical officer at once, what the colours mean, how to take each measurement (blood pressure, pulse oximeter, temperature, urine dipstick, reaction test, daily message) and what to do without contact with Earth.
 
-1. **Message** (home): record the daily message; speech rate, pauses and pitch compared with your own mean; optional camera pulse (rPPG); 30-second reaction test; manual entries (blood pressure, glucose, temperature, sleep, mood, pain); you choose what is sent, it leaves encrypted (AES-256-GCM) and you see when it reaches Earth. A card opens the **sensor lab** and can add its last check-in to the message.
-2. **Crew**: the four crew members with status, monitoring level and alerts.
-3. **Body**: the 3D body coloured green / amber / red / grey stripes (no recent data), region cards, Before/Now comparison and the time machine (90 days in 10 seconds).
-4. **Evolution**: each indicator from preflight to today with the preflight mean, the expected in-flight band, events, rate of change, projection, period comparison and anonymous crew mean.
-5. **Incident**: symptom → signals compatible with a condition card (never a diagnosis) → no-regret actions → resources → authority dial → countdown → SBAR summary under 2 kB.
-6. **Resources**: inventory, "What do we lose if…?", devices and data sources.
-7. **Plan**: adaptive monitoring, blackout planner and process-based gamification.
-8. **Simulator**: mission profile + scenario (24) + date + device failures, with the radiation that mission adds (NASA measurements and estimates against the 600 mSv career limit).
-9. **Learn**: each risk and measurement explained, with sources.
+The condition cards, scenarios and authority engine behind Help are kept in `src/engine/` and `public/data/`.
 
 ## Sensor lab (experimental)
 
-`public/lab/` holds the team's technical modules on one page, opened from **Message → Sensor lab**: eyelids and blink rate, head posture and movement, shoulders and trunk (optional), a held vowel, the pulse with face tracking and an early warning against the person's own baseline. It is a copy of branch `modules-en` (refresh it with `sh scripts/update_lab.sh`), plain ES modules with no build step. When a check-in is sent in the lab, its numbers stay in this browser and the Message screen offers to add them to the message to Earth; a simulated lab check-in is never offered. Signals the app has no rule for travel in the message and do not colour the body: whether any of them should is a decision for the health lead.
+`public/lab/` holds the team's technical modules; the Check-in loads the face and pulse reading from there, and the full lab page is at `lab/tools/demo.html`: eyelids and blink rate, head posture and movement, shoulders and trunk (optional), a held vowel, the pulse with face tracking and an early warning against the person's own baseline. It is a copy of branch `modules-en` (refresh it with `sh scripts/update_lab.sh`), plain ES modules with no build step. Signals the app has no rule for travel in the message and do not colour the body: whether any of them should is a decision for the health lead.
 
 ## How it decides (explainable, no black box)
 
@@ -83,9 +79,10 @@ src/
   engine/    link.ts (Earth link, blackouts) · authority.ts (dial) · status.ts (baselines, colours)
              signals.ts (signal catalogue, provisional rules) · trends.ts · resources.ts · monitoring.ts
              radiation.ts (radiation of each mission, NASA figures) · seal.ts (AES-256-GCM for the message to Earth)
-  sensors/   voice.ts (speech rate, pauses, pitch) · rppg.ts (camera pulse, POS method)
-  components/ body/HealthBody3D.tsx (3D body) · charts.tsx · RegionDetail.tsx · MiniBody.tsx · Header.tsx
-  screens/   Message · Crew · Body · Evolution · Incident · Resources · Plan · Simulator · Learn
+  sensors/   voice.ts (speech rate, pauses, pitch) · rppg.ts (camera pulse, POS method) · camera.ts · lab.ts
+             plain.ts (plain-language sentences and actions) · scenarioEffects.ts (scenario effects)
+  components/ body/HealthBody3D.tsx (3D body) · VitalCard.tsx · LiveHeartCard.tsx · ReactionTest.tsx · Header.tsx
+  screens/simple/   TodaySimple · CheckinSimple · HelpSimple · KitSimple · GuideSimple
   lib/anatomy-viewer/   the team's original 3D viewer component
 public/
   data/      English JSON built by scripts/build_data.py
@@ -107,6 +104,7 @@ scripts/     build_data.py · verify_authority.mjs · verify_horizons.mjs · ver
 
 - Not a diagnosis tool; alerts and thresholds are not clinically validated.
 - Few-astronaut studies (8–25 people) do not allow training a reliable black-box model, so we use transparent statistics and rules.
+- The smart-shirt heart rate on Today is a simulated stream around the value measured that day; a real mission would read it from a Bio-Monitor / Astroskin type garment.
 - Camera pulse accuracy depends on light and stillness; it has not been tested in microgravity (fluid shift changes the face).
 - Effective drug expiry in space is **not determined**: we show stability alerts, we do not invent new dates.
 - Encryption has no key management: the key is created in the browser for the demo, where a mission would load its own before launch. Not audited.
