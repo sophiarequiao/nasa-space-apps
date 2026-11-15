@@ -208,7 +208,7 @@ export async function startFace(videoEl, onResult, options = {}) {
   let modelUrl = s.op.modelUrl;
   if (!modelUrl) {
     const local = new URL('face_landmarker.task', base).href;
-    const ok = await fetch(local, { method: 'HEAD' }).then(r => r.ok).catch(() => false);
+    const ok = await fetch(local, { method: 'HEAD' }).then(r => r.ok && !/text\/html/.test(r.headers.get('content-type') || '')).catch(() => false);   // some servers answer a missing file with their home page
     modelUrl = ok ? local : 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
   }
   const make = (delegate) => FaceLandmarker.createFromOptions(fileset, {

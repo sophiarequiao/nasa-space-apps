@@ -73,7 +73,7 @@ export async function startBody(videoEl, onResult, options = {}) {
   let modelUrl = s.op.modelUrl;
   if (!modelUrl) {
     const local = new URL('pose_landmarker_lite.task', base).href;
-    const ok = await fetch(local, { method: 'HEAD' }).then(r => r.ok).catch(() => false);
+    const ok = await fetch(local, { method: 'HEAD' }).then(r => r.ok && !/text\/html/.test(r.headers.get('content-type') || '')).catch(() => false);   // some servers answer a missing file with their home page
     modelUrl = ok ? local : 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
   }
   const make = (delegate) => PoseLandmarker.createFromOptions(fileset, { baseOptions: { modelAssetPath: modelUrl, delegate }, runningMode: 'VIDEO', numPoses: 1 });
