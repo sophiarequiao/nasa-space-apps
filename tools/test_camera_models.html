@@ -1,0 +1,98 @@
+<!doctype html>
+<!-- Drafted with AI assistance (Claude, Anthropic). MIT licence. -->
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Posture test without a camera · SOSpesAI</title>
+<style>
+  body{font-family:system-ui;max-width:860px;margin:auto;padding:1rem;line-height:1.45}
+  button{font-size:1rem;padding:.45rem .8rem}
+  video{width:320px;max-width:100%;border-radius:8px;display:block;margin:.6rem 0;background:#888}
+  table{border-collapse:collapse;width:100%;margin-top:.6rem} th,td{border-top:1px solid #ccc;padding:.35rem .5rem;text-align:left;vertical-align:top}
+  td.ok{color:#19734a;font-weight:600} td.fail{color:#b4421f;font-weight:600}
+  small{color:#555}
+</style>
+<body>
+<h1>Posture test without a camera</h1>
+<p>A reference portrait is drawn on a canvas, moved and turned by <b>known amounts</b>, and shown to <code>face.js</code> and <code>body.js</code> as if it were the camera. What they report is compared with what was drawn. It takes about 70 seconds and needs no camera or microphone.</p>
+<p><small>The portrait is the test picture Google publishes with MediaPipe. It is loaded from Google's servers, as are the two models if they are not in <code>vendor/mediapipe</code>; nothing is stored here and nothing leaves this page. Keep this tab in view while it runs: browsers slow down hidden tabs. A still picture checks the geometry (tilt, movement, shifts). It cannot check what a real person's change of posture means.</small></p>
+<button id="run">▶ Run the test</button>
+<canvas id="c" width="640" height="480" hidden></canvas><video id="v" playsinline muted></video>   <!-- the video must be on screen: browsers do not hand frames of a hidden video to the models -->
+<p id="state"><b>Not started.</b></p>
+<table><thead><tr><th>Check</th><th>Drawn</th><th>Measured</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+
+<script type="module">
+import { startFace, stopFace } from '../src/sensors/face.js';
+import { startBody, stopBody } from '../src/sensors/body.js';
+
+const $ = (id) => document.getElementById(id), c = $('c'), g = c.getContext('2d'), v = $('v');
+const SEG = 16, WIN = 14;            // seconds per step, and the window the trackers look back over
+const pose = { x: 0, deg: 0 };       // what is drawn: sideways offset in pixels, turn in degrees (clockwise)
+let img = null, face = null, body = null, faceW = [], failed = 0;
+const wait = (s) => new Promise(r => setTimeout(r, s * 1000));
+
+function draw() {
+  g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#888'; g.fillRect(0, 0, c.width, c.height);
+  if (!img) return;
+  const k = Math.min(c.width / img.naturalWidth, c.height / img.naturalHeight);
+  g.translate(c.width / 2 + pose.x, c.height / 2); g.rotate(pose.deg * Math.PI / 180);
+  g.drawImage(img, -img.naturalWidth * k / 2, -img.naturalHeight * k / 2, img.naturalWidth * k, img.naturalHeight * k);
+}
+function row(name, drawn, measured, ok) {
+  if (!ok) failed++;
+  $('rows').insertAdjacentHTML('beforeend', `<tr><td>${name}</td><td>${drawn}</td><td>${measured}</td><td class="${ok ? 'ok' : 'fail'}">${ok ? 'OK' : 'FAIL'}</td></tr>`);
+  return { name, drawn, measured, ok };
+}
+const state = (t) => { $('state').innerHTML = `<b>${t}</b>`; };
+
+$('run').onclick = async () => {
+  $('run').disabled = true; $('rows').innerHTML = ''; failed = 0; faceW = []; face = body = null; const results = [];
+  try {
+    state('Loading the reference portrait…');
+    img = new Image(); img.crossOrigin = 'anonymous';
+    await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error('the reference portrait did not load (no internet?)')); img.src = 'https://storage.googleapis.com/mediapipe-assets/portrait.jpg'; });
+    const timer = setInterval(draw, 33); draw();
+    v.srcObject = c.captureStream(30); await v.play();
+    state('Loading the two models…');
+    await Promise.all([
+      startFace(v, (r) => { if (r.posture) face = r; }, { window_s: WIN, onFrame: (f) => { if (f.found) faceW.push((f.box.x1 - f.box.x0) * c.width); } }),
+      startBody(v, (r) => { if (r.state === 'ok' || r.state === 'measuring') body = r; }, { window_s: WIN }),
+    ]);
+
+    // 1. Still and upright: the reference for everything else
+    state('Step 1 of 4: still and upright'); await wait(SEG);
+    if (!face || !body) throw new Error(`no ${!face ? 'face' : 'body'} was found in the picture`);
+    const f0 = face.posture, b0 = body, fw = faceW.slice(-200).reduce((a, x) => a + x, 0) / Math.min(200, faceW.length);
+    results.push(row('Still: head movement', '0', `${f0.head_movement} % of the face width per second`, f0.head_movement != null && f0.head_movement < 1));
+    results.push(row('Still: trunk movement', '0', `${b0.trunk_movement} % of the shoulder width per second`, b0.trunk_movement != null && b0.trunk_movement < 2));
+    results.push(row('Still: no posture shift', '0', `head ${f0.posture_shifts}, trunk ${b0.trunk_shifts} per minute`, f0.posture_shifts === 0 && b0.trunk_shifts === 0));
+
+    // 2. The whole picture turned 12 degrees
+    state('Step 2 of 4: turned 12 degrees'); pose.deg = 12; await wait(SEG);
+    const dHead = face.posture.head_tilt - f0.head_tilt, dSh = body.shoulder_tilt - b0.shoulder_tilt;
+    results.push(row('Turned: head tilt', '+12 degrees', `${dHead >= 0 ? '+' : ''}${dHead.toFixed(1)} degrees (from ${f0.head_tilt} to ${face.posture.head_tilt})`, Math.abs(dHead - 12) <= 2));
+    results.push(row('Turned: shoulder tilt', '+12 degrees', `${dSh >= 0 ? '+' : ''}${dSh.toFixed(1)} degrees (from ${b0.shoulder_tilt} to ${body.shoulder_tilt})`, Math.abs(dSh - 12) <= 3));
+    results.push(row('Turned: the head stays as high over the shoulders', `${b0.head_height} %`, `${body.head_height} %`, Math.abs(body.head_height - b0.head_height) <= 6));
+
+    // 3. Slow sway: 5 % of the face width to each side, once every 4 s. The path of a sine is 4 x amplitude per cycle.
+    state('Step 3 of 4: slow sway'); pose.deg = 0; const t0 = performance.now(), A = 0.05 * fw;
+    const sway = setInterval(() => { pose.x = A * Math.sin(2 * Math.PI * (performance.now() - t0) / 4000); }, 16);
+    await wait(SEG); clearInterval(sway);
+    results.push(row('Sway: head movement', '5 % of the face width per second', `${face.posture.head_movement} %`, face.posture.head_movement >= 3.5 && face.posture.head_movement <= 6.5));
+    results.push(row('Sway: the trunk moves too', `more than twice the still value (${b0.trunk_movement} %)`, `${body.trunk_movement} % of the shoulder width per second`, body.trunk_movement > 2 * b0.trunk_movement && body.trunk_movement < 6));
+    results.push(row('Sway is not a posture shift', '0', `head ${face.posture.posture_shifts} per minute`, face.posture.posture_shifts === 0));
+
+    // 4. One move to a new place (0.6 face widths), and stay
+    state('Step 4 of 4: one move to a new place'); pose.x = 0; await wait(6); pose.x = 0.6 * fw; await wait(SEG - 6);
+    const perShift = 60 / WIN;   // one shift inside the window, written per minute
+    results.push(row('Move and stay: one posture shift of the head', `1 in ${WIN} s = ${perShift.toFixed(1)} per minute`, `${face.posture.posture_shifts} per minute`, Math.abs(face.posture.posture_shifts - perShift) < 0.6));
+    results.push(row('Move and stay: the trunk shifts too', 'at least 1', `${body.trunk_shifts} per minute`, body.trunk_shifts > 0));
+
+    clearInterval(timer);
+    state(failed ? `${failed} check${failed > 1 ? 's' : ''} FAILED` : 'All checks as expected');
+  } catch (e) { state(`Could not run: ${e.message}`); failed = -1; }
+  stopFace(); stopBody(); if (v.srcObject) { v.srcObject.getTracks().forEach(t => t.stop()); v.srcObject = null; }
+  window.__result = { failed, results, hidden: document.hidden };   // for automated runs
+  $('run').disabled = false;
+};
+</script>
+</body>
+</html>

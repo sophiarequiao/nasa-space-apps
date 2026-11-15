@@ -2,7 +2,7 @@
 // Drafted with AI assistance (Claude, Anthropic). MIT licence.
 import { earlyWarning } from '../src/engine/earlyWarning.js';
 const base = { speech_rate: { mean: 4.6, sd: 0.23 }, pause_fraction: { mean: 0.35, sd: 0.04 }, f0_mean: { mean: 165, sd: 8 }, voice_harmonicity: { mean: 8.2, sd: 0.8 },
-  blink_rate: { mean: 15, sd: 4 }, perclos: { mean: 4, sd: 1.5 }, heart_rate: { pre_mean: 72, pre_sd: 5 }, head_tilt: { mean: 1, sd: 4 }, head_movement: { mean: 6, sd: 1.5 } };
+  blink_rate: { mean: 15, sd: 4 }, perclos: { mean: 4, sd: 1.5 }, heart_rate: { pre_mean: 72, pre_sd: 5 }, head_tilt: { mean: 1, sd: 4 }, head_movement: { mean: 6, sd: 1.5 }, head_height: { mean: 62, sd: 4 }, shoulder_tilt: { mean: 0, sd: 3 } };
 const o = (signal, value, quality = 1, source = 'microphone') => ({ signal, value, quality, source });
 const cases = [
   ['Rested', [o('speech_rate', 4.55), o('pause_fraction', 0.36), o('f0_mean', 166), o('blink_rate', 14, 1, 'camera_face'), o('perclos', 4.2, 1, 'camera_face')], 'green'],
@@ -15,6 +15,9 @@ const cases = [
   ['Four small changes, voice and eyelids together (none reaches 2 sd)', [o('speech_rate', 4.21), o('pause_fraction', 0.414), o('voice_harmonicity', 6.84), o('perclos', 6.7, 1, 'camera_face'), o('blink_rate', 15, 1, 'camera_face')], 'amber', 'pattern'],
   ['Four small changes, all from the microphone: one sensor is not enough', [o('speech_rate', 4.21), o('pause_fraction', 0.414), o('voice_harmonicity', 6.84), o('f0_mean', 178.6), o('blink_rate', 15, 1, 'camera_face')], 'green', null],
   ['Three small changes from two sensors: not enough', [o('speech_rate', 4.21), o('pause_fraction', 0.414), o('perclos', 6.7, 1, 'camera_face'), o('blink_rate', 15, 1, 'camera_face')], 'green', null],
+  ['Four small changes, face and body only: the camera is one sensor, not enough', [o('perclos', 6.7, 1, 'camera_face'), o('head_movement', 3.4, 1, 'camera_face'), o('head_height', 55, 1, 'camera_body'), o('shoulder_tilt', 5.1, 1, 'camera_body'), o('speech_rate', 4.6)], 'green', null],
+  ['The same four with slower speech too: voice and camera together', [o('perclos', 6.7, 1, 'camera_face'), o('head_movement', 3.4, 1, 'camera_face'), o('head_height', 55, 1, 'camera_body'), o('shoulder_tilt', 5.1, 1, 'camera_body'), o('speech_rate', 4.22)], 'amber', 'pattern'],
+  ['Sitting taller than usual is not flagged', [o('head_height', 74, 1, 'camera_body'), o('speech_rate', 4.6), o('pause_fraction', 0.35)], 'green', null],
   // Head posture counts like any other signal
   ['Head tilted more than usual (z = +2.5) and slower speech (z = -2.2)', [o('head_tilt', 11, 1, 'camera_face'), o('speech_rate', 4.09), o('pause_fraction', 0.35)], 'amber', 'several'],
   ['Head tilted more than usual, nothing else', [o('head_tilt', 11, 1, 'camera_face'), o('head_movement', 6.2, 1, 'camera_face'), o('speech_rate', 4.6)], 'green', null],

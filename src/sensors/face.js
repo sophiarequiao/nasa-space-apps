@@ -123,7 +123,7 @@ export function createExpressionTracker() {
 // posture (NASA neutral body posture; the STS-57 study found it differs between people), so only the personal
 // baseline makes sense. All thresholds are ASSUMPTIONS to be tuned with real data.
 const BIN_MS = 500, SHIFT_WIDTHS = 0.25, SHIFT_DEG = 8, SHIFT_BINS = 3, MIN_STEPS = 20;
-export function createPostureTracker() {
+export function createPostureTracker({ minFrames = 3 } = {}) {   // minFrames: looks needed inside each 0.5 s average
   const frames = [];                   // { t, x, y, w, roll }: x, y and w in the same unit (fractions of the frame width)
   return {
     /** @param {number} t ms · x, y: centre of the face · w: width of the face · roll: sideways tilt in degrees, or null */
@@ -141,7 +141,7 @@ export function createPostureTracker() {
         if (!b) bins.set(k, b = { k, n: 0, x: 0, y: 0, w: 0, r: 0, nr: 0 });
         b.n++; b.x += f.x; b.y += f.y; b.w += f.w; if (f.roll != null) { b.r += f.roll; b.nr++; }
       }
-      const list = [...bins.values()].filter(b => b.n >= 3).sort((a, b) => a.k - b.k)
+      const list = [...bins.values()].filter(b => b.n >= minFrames).sort((a, b) => a.k - b.k)
         .map(b => ({ k: b.k, x: b.x / b.n, y: b.y / b.n, w: b.w / b.n, roll: b.nr ? b.r / b.nr : null }));
       if (list.length < MIN_STEPS + 1) return none;
       // Movement: path of the 0.5 s averages, in face widths, per second of continuous view

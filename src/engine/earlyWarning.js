@@ -33,6 +33,7 @@ export const DIRECTION = {
   blink_rate: 0, perclos: +1, long_eye_closures: +1, yawns: +1, blink_duration: +1, facial_expressiveness: -1,
   smile_asymmetry: +1, brow_asymmetry: +1,
   head_movement: 0, head_tilt: 0, posture_shifts: 0,   // posture: restless or unusually still, both count (EXPERIMENTAL)
+  shoulder_tilt: 0, trunk_movement: 0, head_height: -1, // body.js: the head sitting lower over the shoulders is the slump (EXPERIMENTAL)
   heart_rate: 0,
 };
 const NAME = {
@@ -42,9 +43,12 @@ const NAME = {
   yawns: 'yawning', heart_rate: 'heart rate', blink_duration: 'blink length', facial_expressiveness: 'facial movement',
   smile_asymmetry: 'smile symmetry', brow_asymmetry: 'eyebrow symmetry',
   head_movement: 'head movement', head_tilt: 'head tilt', posture_shifts: 'posture shifts',
+  shoulder_tilt: 'shoulder tilt', trunk_movement: 'trunk movement', head_height: 'head height over the shoulders',
 };
 const MIN_QUALITY = 0.4, Z_FLAG = 2, Z_STRONG = 3, MIN_USABLE = 3;
 const Z_MOVED = 1.5, MIN_MOVED = 4, MIN_SOURCES = 2;   // the pattern rule: many small changes together
+// For that rule the face and the body seen by the camera are ONE sensor; the pulse read from skin colour is another
+const SENSOR = { camera_face: 'camera', camera_body: 'camera', camera_rppg: 'camera pulse' };
 
 export function earlyWarning(observations, baseline = {}, options = {}) {
   const strongOnes = [], moved = []; let usable = 0, sumSq = 0;
@@ -63,7 +67,7 @@ export function earlyWarning(observations, baseline = {}, options = {}) {
   }
   const bySize = (a, b) => Math.abs(b.z) - Math.abs(a.z);
   moved.sort(bySize); strongOnes.sort(bySize);
-  const sources = [...new Set(moved.map(f => f.source).filter(Boolean))];
+  const sources = [...new Set(moved.map(f => SENSOR[f.source] || f.source).filter(Boolean))];
   const strong = strongOnes.some(f => Math.abs(f.z) >= Z_STRONG), several = strongOnes.length >= 2;
   const together = moved.length >= MIN_MOVED && sources.length >= MIN_SOURCES;
   const minUsable = options.minUsable ?? MIN_USABLE;
