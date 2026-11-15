@@ -26,6 +26,7 @@
   button.primary:hover:not(:disabled){background:var(--earth);border-color:var(--earth)}
   button.primary:disabled{background:var(--silentBg)}
   .fine{color:var(--mut);font-size:.875rem;margin:.4rem 0 0;max-width:72ch}
+  #radNote a{white-space:nowrap}
   .row{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin-top:.8rem}
 
   .bar{background:var(--ink);color:var(--paper);display:flex;flex-wrap:wrap;gap:.6rem 1.4rem;align-items:center;padding:.6rem clamp(1rem,4vw,3rem)}
@@ -128,6 +129,7 @@
     <text id="clock" x="500" y="22" text-anchor="middle" font-size="17" font-weight="600" fill="#10202E"></text>
   </svg>
   <p id="linkNote" class="fine"></p>
+  <p id="radNote" class="fine" hidden></p>
   <div id="calBox" hidden>
     <svg id="calSvg" viewBox="0 0 1000 116" role="img" aria-label="One-way light time between Mars and Earth for every day of the table"></svg>
     <p id="calNote" class="fine"></p>
@@ -221,10 +223,12 @@ import { startBody, stopBody } from '../src/sensors/body.js';
 import { startPulseTracked, pushFaceFrame, pulseSummary, stopPulse } from '../src/sensors/rppg.js';
 import { earlyWarning } from '../src/engine/earlyWarning.js';
 import { newMissionKey, createSender, createReceiver, toHex } from '../src/engine/seal.js';
+import { loadRadiationData, radiationFor } from '../src/engine/radiation.js';
 
 const $ = (id) => document.getElementById(id);
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 await loadAuthorityData();
+await loadRadiationData().catch(() => {});   // NASA radiation by mission: the page works without it
 
 // ---------- Signals shown, in display order. floor / abs: minimum sd of a short personal baseline (ASSUMPTION) ----------
 const SIG = {
@@ -554,6 +558,13 @@ function markCalendar() {
     `<circle cx="${x}" cy="${calY(l.owlt_s).toFixed(1)}" r="5.5" fill="#1857C4" stroke="#fff" stroke-width="2"/>`;
 }
 
+function showRadiation(id) {   // what NASA measured or estimates for the mission chosen; never stops the rest of the page
+  let r = null;
+  try { r = radiationFor(id); } catch { /* no data: the line stays hidden */ }
+  $('radNote').hidden = !r;
+  $('radNote').innerHTML = r ? `${esc(r.text)} Sources: ${r.sources.map(s => `<a href="${esc(s.url)}" title="${esc(s.title)}" target="_blank" rel="noopener">${esc(s.short)}</a>`).join('; ')}.` : '';
+}
+
 function showLink() {
   cancelAnimationFrame(anim); clearTimeout(sendTimer); $('photon').setAttribute('opacity', 0); $('clock').textContent = '';
   const p = getProfile($('profile').value), link = getLink(dateISO(), p.link, custom());
@@ -569,6 +580,7 @@ function showLink() {
   $('linkNote').textContent = link.hasLink
     ? `Round trip ${formatDuration(link.rtt_s)}.${n >= 1 ? ' Each tick is one light-minute, about 18 million km.' : ''} ${p.outages}.`
     : `${REASON[link.noLinkReason] || link.noLinkReason}. A check-in is queued and sent when the link is back.`;
+  showRadiation(p.id);
   return link;
 }
 

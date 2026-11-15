@@ -59,7 +59,7 @@ python -m http.server 8000
 
 Open `http://localhost:8000/tools/demo.html` in a recent Chrome or Edge. Any static file server works; Python is only used to serve the files.
 
-1. At the top, choose a mission, a date and a situation. The page shows the light time, a to-scale line between the two worlds, the calendar of the whole table (click any day) and the verdict, with the steps to start now and the red flags of that situation.
+1. At the top, choose a mission, a date and a situation. The page shows the light time, a to-scale line between the two worlds, the radiation that mission adds (NASA measurements and estimates, with their sources), the calendar of the whole table (click any day) and the verdict, with the steps to start now and the red flags of that situation.
 2. In the daily check-in choose **Simulated, rested** or **Simulated, tired** to see it work without a camera. With **Live sensors**, allow the microphone and the camera and talk for 30 seconds.
 3. The read-out places each signal against the personal baseline. The baseline exists after two saved check-ins and is kept only in this browser.
 4. **Send this check-in to Earth** shows the summary travelling with the real light time of that date.
@@ -77,9 +77,12 @@ Open `http://localhost:8000/tools/demo.html` in a recent Chrome or Edge. Any sta
 | NASA Space Flight Human-System Standard, [NASA-STD-3001 Vol. 1, section 6.2](https://www.nasa.gov/reference/6-0-medical-operations/), private medical communication | Why the summary is encrypted before it leaves, and why a stored message is acceptable when the link has a delay | `src/engine/seal.js` |
 | NASA Ames, [Inductive Monitoring System](https://ntrs.nasa.gov/api/citations/20090037065/downloads/20090037065.pdf), used in the space station flight control room | The principle of the early warning: learn normal from the system's own data, measure the distance from it | `src/engine/earlyWarning.js` |
 | NASA [neutral body posture](https://spinoff.nasa.gov/node/11046) research (Skylab, STS-57) | Why posture is compared with the person's own baseline and not with a standard posture | `src/sensors/face.js`, `src/sensors/body.js` |
+| NASA Mars Science Laboratory, RAD instrument (Radiation Assessment Detector): [cruise to Mars](https://swri.org/node/9140), Zeitlin et al., Science 340, 1080 (2013), and [surface of Mars](https://swri.org/node/9079), Hassler et al., Science 343, 1244797 (2014) | Radiation measured on the way to Mars (1.8 mSv a day inside the spacecraft, 2011-2012) and on its surface (0.67 mSv a day at Gale crater, 2012-2013) | `data/radiation.json`, `src/engine/radiation.js` |
+| NASA Office of the Chief Health and Medical Officer, [Radiation Protection technical brief](https://www.nasa.gov/wp-content/uploads/2023/03/radiation-protection-technical-brief-ochmo.pdf) (OCHMO-TB-020), NASA-STD-3001 Vol. 1 | NASA's career limit for space flight radiation, 600 mSv, against which every mission is read | `data/radiation.json` |
+| NASA, Simonsen, Zawaski and Weeks, [Moon 2 Mars: Space Radiation Protection](https://ntrs.nasa.gov/api/citations/20250006168/downloads/ASCEND%20Simonsen%20draft%201.pdf) (NTRS 20250006168) | Radiation inside the space station (0.2 to 0.5 mSv a day) and NASA's estimates for a short lunar mission, a stay on the Moon and a whole Mars mission (1,000 to 1,200 mSv) | `data/radiation.json` |
 | NASA paper on medical risk for a long lunar mission with the IMPACT tool, [NTRS 20240011063](https://ntrs.nasa.gov/citations/20240011063) | Background for the evacuation notes of the lunar profiles | `data/mission_profiles.json` |
 
-The Integrated Medical Model report was run with the medical kit of the space station and itself advises caution when reading it for Mars; we use it only to choose which situations to show. The evacuation times in the mission profiles are still being confirmed against the full text of the lunar paper.
+The Integrated Medical Model report was run with the medical kit of the space station and itself advises caution when reading it for Mars; we use it only to choose which situations to show. The evacuation times in the mission profiles are still being confirmed against the full text of the lunar paper. The radiation figures are averages for the periods measured: they change with shielding and with the solar cycle and leave out a large solar storm, the two for Mars are dose equivalent from galactic cosmic rays while the station and the Moon are effective dose, and the Moon has NASA estimates, not measurements. The page shows them as context for the mission chosen; it does not add up anybody's dose.
 
 This project uses NASA data and is not endorsed by NASA. No NASA logos or insignia are used.
 
@@ -97,6 +100,7 @@ This project uses NASA data and is not endorsed by NASA. No NASA logos or insign
 | Head posture and movement (experimental) | Synthetic positions; two real recordings of one person (still, talking, moving); a reference portrait turned and moved by known amounts in front of the real model | Head movement 1.1 to 2.8 % of the face width per second still, 3.8 to 9.4 talking, 10.8 to 12.2 moving. A turn of 12° reads 11.8°, a sway of 5 % per second reads 4.6, one move to a new place reads as one posture shift | Not yet tried live with these numbers on screen; the camera position changes the reading; fast nods are averaged out; nothing says what a change means |
 | Shoulders and trunk (experimental, optional) | Synthetic poses; the same reference portrait | A turn of 12° reads 12.1°; the head height over the shoulders stays within 0.1 point | Never tried on a live person by the team; needs both shoulders in view; a second model slows an old laptop |
 | Encryption of the summary | Test Cases 13 and 14 of the GCM specification; same bytes as OpenSSL; a changed bit, another key and a replayed message | 20 of 20 checks as expected | No key management; not audited |
+| Radiation by mission | 18 checks of the numbers and of the arithmetic against the sources | 1.8 mSv a day reaches NASA's career limit of 600 mSv in about 333 days, 0.67 in about 896; six months at the station rate give 36 to 90 mSv, where NASA gives 40 to 90 | Averages, not a dosimeter; no solar storm; the Moon figures are estimates; the three sources still have to be opened by a second person of the team |
 | Early warning | 15 synthetic cases | As designed | The rules (1.5, 2 and 3 standard deviations) are team assumptions; the rule for several small changes is new and not yet reviewed by the health lead |
 
 Run the checks yourself (Node 18 or later, nothing to install):
@@ -112,6 +116,7 @@ node tools/test_body.mjs           # shoulders and trunk
 node tools/test_early_warning.mjs
 node tools/test_rppg.mjs
 node tools/test_seal.mjs           # encryption: published vectors, OpenSSL, tampering, replay
+node tools/test_radiation.mjs      # radiation by mission: NASA figures, career limit, sources
 ```
 
 In a browser, `tools/test_camera_models.html` checks the two camera models without a camera: it shows them a reference portrait that is turned and moved by known amounts, and compares what they report (about 70 seconds, needs internet).
@@ -124,11 +129,12 @@ In a browser, `tools/test_camera_models.html` checks the two camera models witho
 | `src/engine/authority.js` | Who decides: Earth, both or the crew |
 | `src/engine/earlyWarning.js` | Change from the personal baseline: silent, green or amber |
 | `src/engine/seal.js` | Encryption of the summary that is sent to Earth (AES-256-GCM) |
+| `src/engine/radiation.js` | Radiation each mission adds, from NASA measurements and estimates, against NASA's career limit |
 | `src/sensors/voice.js` | The 30 second voice message and the held vowel |
 | `src/sensors/face.js` | Eyelids, yawns, facial movement, head posture and the guided symmetry check |
 | `src/sensors/body.js` | Optional: shoulders and trunk |
 | `src/sensors/rppg.js` | Experimental pulse from the camera |
-| `data/` | Mars link table 2026-2040, Horizons reference, mission profiles, condition cards |
+| `data/` | Mars link table 2026-2040, Horizons reference, mission profiles, condition cards, radiation by mission |
 | `docs/` | Figure of the Mars link, drawn from the table |
 | `tools/demo.html` | The whole flow in one page |
 | `tools/` | Tests for Node (`*.mjs`), test pages for the browser (`test_*.html`), the Python scripts that built the Mars table |

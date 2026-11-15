@@ -11,6 +11,7 @@ Code, identifiers and data keys are in English. Not a medical device: the module
 | `src/sensors/rppg.js` (optional) | `startPulse(videoEl, onResult, { crew })` / `stopPulse()` | calls `onResult({ state, bpm, bpm_raw, quality, reason, observation, waveform })` once per second |
 | `src/sensors/body.js` (optional) | `startBody(videoEl, onResult, { crew })` / `stopBody()` | calls `onResult({ state, shoulder_tilt, trunk_movement, head_height, observations })` once per second |
 | `src/engine/seal.js` | `createSender(key, id).seal(object)` / `createReceiver(key).open(frame)` | `{ frame, counter, clearBytes }` / `{ payload, sender, counter }` |
+| `src/engine/radiation.js` | `radiationFor(profileId)` | `{ kind, rate_mSv_day, days_to_limit, limit_mSv, text, sources }` or `null` |
 
 ## Loading data
 
@@ -57,6 +58,7 @@ node tools/test_voice.mjs       # synthetic speech with known rate, pauses and p
 node tools/test_rppg.mjs        # synthetic pulse signals: 55, 72, 110 bpm, noise, slow motion, low light
 node tools/test_body.mjs        # shoulders and trunk, synthetic poses
 node tools/test_seal.mjs        # encryption: GCM specification vectors, OpenSSL, tampering, replay
+node tools/test_radiation.mjs   # radiation by mission: NASA figures, career limit, sources
 ```
 
 **End-to-end demo:** `tools/demo.html` chains the modules: voice message → measures against the personal baseline → summary travelling to Earth with the real light time → authority dial per mission and situation.
@@ -167,6 +169,26 @@ const { payload } = await rx.open(frame);          // throws if a bit was change
 ```
 
 `frame` is a `Uint8Array`: 12 bytes of IV (32 bits of sender + 64 bits of counter), the ciphertext and a 16-byte tag, always 28 bytes more than the clear JSON. AES-256-GCM through the Web Crypto API, as CCSDS 352.0-B-2 recommends for space links; the counter follows the deterministic IV of NIST SP 800-38D and also stops replays. It needs a secure page (https or localhost). No key management: the demo creates the key when the page opens. The baseline in `localStorage` is not encrypted.
+
+## Radiation by mission (`src/engine/radiation.js`)
+
+```js
+import { loadRadiationData, radiationFor } from './src/engine/radiation.js';
+await loadRadiationData();                 // data/radiation.json; in Node: setRadiationData(json)
+const r = radiationFor('mars_transit');    // same ids as the mission profiles; null for 'custom'
+// r.text    -> "Radiation: about 1.8 millisieverts a day, measured inside the spacecraft that carried NASA's Curiosity rover to Mars (2011-2012). NASA's career limit is 600 mSv, reached after about 333 days at this rate. NASA projects 1,000 to 1,200 mSv for a whole Mars mission."
+// r.sources -> [{ short, title, url }, ...]   every number in the text has its source here
+```
+
+| Mission profile | What it shows | Kind |
+|---|---|---|
+| `iss` | 0.2 to 0.5 mSv a day inside the space station | `typical`: NASA's range for crews |
+| `lunar_orbit` | Under 20 to about 30 mSv for a lunar mission of 10 to 30 days | `projected`: NASA estimate |
+| `moon_relay`, `moon_south_pole` | Under 100 mSv in six months at solar maximum, about 350 in a year at solar minimum | `projected`: NASA estimate |
+| `mars_transit` | 1.8 mSv a day inside the spacecraft that carried Curiosity | `measured`: RAD instrument, 2011-2012 |
+| `mars_surface` | 0.67 mSv a day at Gale crater | `measured`: RAD instrument, 2012-2013 |
+
+`days_to_limit` is the career limit of 600 mSv (NASA-STD-3001) divided by the daily rate; it is `null` where NASA gives a dose for the whole stay and no daily rate. The numbers are averages that change with shielding and the solar cycle and leave out a large solar storm; the two for Mars are dose equivalent from galactic cosmic rays, the others effective dose. It is context for the mission chosen: it does not add up a person's dose and it is not a dosimeter. The app can show `text` and the links of `sources` as they are.
 
 ## Early warning: what changed (`src/engine/earlyWarning.js`)
 
